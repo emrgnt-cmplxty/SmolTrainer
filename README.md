@@ -11,6 +11,9 @@ git submodule update --init
 
 # Install poetry and the project
 pip3 install poetry && poetry install
+
+# Optional development tooling
+# pre-commit install
 ```
 
 ```bash

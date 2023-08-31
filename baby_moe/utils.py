@@ -70,7 +70,11 @@ def parse_args():
         choices=["scratch", "resume", "gpt2*"],
         help="Initialization mode: scratch, resume or gpt2*",
     )
+<<<<<<< HEAD
     # wandb logging
+=======
+    # Wandb logging
+>>>>>>> f3aaecc (Feature/add config (#7))
     parser.add_argument(
         "--wandb_log",
         default=False,
@@ -83,7 +87,12 @@ def parse_args():
     parser.add_argument(
         "--wandb_run_name", default="gpt2", type=str, help="W&B run name"
     )
+<<<<<<< HEAD
     # data arguments
+=======
+
+    # Data arguments
+>>>>>>> f3aaecc (Feature/add config (#7))
     parser.add_argument(
         "--dataset", default="openwebtext", type=str, help="Dataset name"
     )
@@ -99,7 +108,12 @@ def parse_args():
     parser.add_argument(
         "--block_size", default=1024, type=int, help="Block size"
     )
+<<<<<<< HEAD
     # model arguments
+=======
+
+    # Model arguments
+>>>>>>> f3aaecc (Feature/add config (#7))
     parser.add_argument(
         "--n_layer",
         default=12,
@@ -127,7 +141,22 @@ def parse_args():
         action="store_true",
         help="Use bias inside LayerNorm and Linear layers",
     )
-    # optimizer arguments
+
+    # MoE Settings
+    parser.add_argument(
+        "--n_experts",
+        default=12,
+        type=int,
+        help="Number of experts for the MoE model.",
+    )
+    parser.add_argument(
+        "--top_k_experts",
+        default=6,
+        type=int,
+        help="Top k to consider for gating.",
+    )
+
+    # Optimizer arguments
     parser.add_argument(
         "--learning_rate", default=6e-4, type=float, help="Learning rate"
     )
@@ -139,9 +168,6 @@ def parse_args():
     )
     parser.add_argument(
         "--mode", default="gpt", type=str, help="Mode to run the model"
-    )
-    parser.add_argument(
-        "--num_experts", default=12, type=int, help="Number of experts"
     )
     parser.add_argument(
         "--weight_decay",
@@ -158,7 +184,8 @@ def parse_args():
     parser.add_argument(
         "--grad_clip", default=1.0, type=float, help="Gradient clipping value"
     )
-    # learning rate decay settings
+
+    # Learning rate decay settings
     parser.add_argument(
         "--decay_lr",
         default=True,
@@ -188,7 +215,8 @@ def parse_args():
         choices=["nccl", "gloo"],
         help="Backend for DDP",
     )
-    # system arguments
+
+    # System arguments
     parser.add_argument(
         "--device", default="cuda", type=str, help="Device for training"
     )
