@@ -22,6 +22,7 @@ import time
 import math
 import pickle
 from contextlib import nullcontext
+from typing import Optional, Tuple
 
 import numpy as np
 import torch
@@ -37,7 +38,7 @@ from moe import MoEGPT
 from utils import get_root_py_fpath, parse_args
 
 
-def load_config_and_overwrite_args(args: argparse.Namespace):
+def load_config_and_overwrite_args(args: argparse.Namespace) -> None:
     local_vars_before = locals().copy()
     config_load = open(args.config_file).read()
     print(f"Reading config from {args.config_file}:\n{config_load}")
@@ -49,6 +50,62 @@ def load_config_and_overwrite_args(args: argparse.Namespace):
 
     for var in new_vars:
         setattr(args, var, local_namespace[var])
+
+
+def load_data(
+    args: argparse.Namespace,
+) -> Tuple[np.memmap, np.memmap, Optional[int]]:
+    """Load training and validation data."""
+    data_dir = os.path.join(
+        get_root_py_fpath(), "nano_gpt", "data", args.dataset
+    )
+    train_data = np.memmap(
+        os.path.join(get_root_py_fpath(), data_dir, "train.bin"),
+        dtype=np.uint16,
+        mode="r",
+    )
+    val_data = np.memmap(
+        os.path.join(get_root_py_fpath(), data_dir, "val.bin"),
+        dtype=np.uint16,
+        mode="r",
+    )
+    # attempt to derive vocab_size from the dataset
+    meta_path = os.path.join(data_dir, "meta.pkl")
+    meta_vocab_size = None
+    if os.path.exists(meta_path):
+        with open(meta_path, "rb") as f:
+            meta = pickle.load(f)
+        meta_vocab_size = meta["vocab_size"]
+        print(f"found vocab_size = {meta_vocab_size} (inside {meta_path})")
+
+    return (train_data, val_data, meta_vocab_size)
+
+
+def get_batch(split: str) -> Tuple[torch.Tensor, torch.Tensor]:
+    data = train_data if split == "train" else val_data
+    ix = torch.randint(len(data) - args.block_size, (args.batch_size,))
+    x = torch.stack(
+        [
+            torch.from_numpy((data[i : i + args.block_size]).astype(np.int64))
+            for i in ix
+        ]
+    )
+    y = torch.stack(
+        [
+            torch.from_numpy(
+                (data[i + 1 : i + 1 + args.block_size]).astype(np.int64)
+            )
+            for i in ix
+        ]
+    )
+    if device_type == "cuda":
+        # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
+        x, y = x.pin_memory().to(
+            args.device, non_blocking=True
+        ), y.pin_memory().to(args.device, non_blocking=True)
+    else:
+        x, y = x.to(args.device), y.to(args.device)
+    return x, y
 
 
 if __name__ == "__main__":
@@ -109,62 +166,12 @@ if __name__ == "__main__":
         else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
     )
 
-    print(f"args.dataset =", args.dataset)
-    # poor man's data loader
-    data_dir = os.path.join(
-        get_root_py_fpath(), "nano_gpt", "data", args.dataset
-    )
-    train_data = np.memmap(
-        os.path.join(get_root_py_fpath(), data_dir, "train.bin"),
-        dtype=np.uint16,
-        mode="r",
-    )
-    val_data = np.memmap(
-        os.path.join(get_root_py_fpath(), data_dir, "val.bin"),
-        dtype=np.uint16,
-        mode="r",
-    )
-
-    def get_batch(split):
-        data = train_data if split == "train" else val_data
-        ix = torch.randint(len(data) - args.block_size, (args.batch_size,))
-        x = torch.stack(
-            [
-                torch.from_numpy(
-                    (data[i : i + args.block_size]).astype(np.int64)
-                )
-                for i in ix
-            ]
-        )
-        y = torch.stack(
-            [
-                torch.from_numpy(
-                    (data[i + 1 : i + 1 + args.block_size]).astype(np.int64)
-                )
-                for i in ix
-            ]
-        )
-        if device_type == "cuda":
-            # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
-            x, y = x.pin_memory().to(
-                args.device, non_blocking=True
-            ), y.pin_memory().to(args.device, non_blocking=True)
-        else:
-            x, y = x.to(args.device), y.to(args.device)
-        return x, y
+    print(f"Running over {args.dataset}")
+    train_data, val_data, meta_vocab_size = load_data(args)
 
     # init these up here, can override if init_from='resume' (i.e. from a checkpoint)
     iter_num = 0
     best_val_loss = 1e9
-
-    # attempt to derive vocab_size from the dataset
-    meta_path = os.path.join(data_dir, "meta.pkl")
-    meta_vocab_size = None
-    if os.path.exists(meta_path):
-        with open(meta_path, "rb") as f:
-            meta = pickle.load(f)
-        meta_vocab_size = meta["vocab_size"]
-        print(f"found vocab_size = {meta_vocab_size} (inside {meta_path})")
 
     # model init
     model_args = dict(
