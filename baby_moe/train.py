@@ -334,7 +334,7 @@ if __name__ == "__main__":
         model_args["vocab_size"] = (
             meta_vocab_size if meta_vocab_size is not None else 50304
         )
-        logger.info("Model is initializing with args:\n{model_args}")
+        logger.info(f"Model is initializing with args:\n{model_args}")
         gptconf = GPTConfig(**model_args)
         model = (
             GPT(gptconf)
