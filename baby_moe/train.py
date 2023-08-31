@@ -262,7 +262,7 @@ def train_model(
                     else 0.9 * running_mfu + 0.1 * mfu
                 )
             logger.info(
-                f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%"
+                f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, 100*mfu {running_mfu*100*100:.2f}%"
             )
         iter_num += 1
         local_iter_num += 1
