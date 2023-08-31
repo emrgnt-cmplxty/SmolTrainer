@@ -34,86 +34,88 @@ def parse_args():
 
     # I/O arguments
     parser.add_argument(
-        "--config_file", default="", type=str, help="Configuration file"
+        "--config-file", default="", type=str, help="Configuration file"
     )
     parser.add_argument(
-        "--out_dir", default="out", type=str, help="Output directory"
+        "--out-dir", default="out", type=str, help="Output directory"
     )
     parser.add_argument(
-        "--eval_interval", default=2000, type=int, help="Evaluation interval"
+        "--eval-interval", default=2000, type=int, help="Evaluation interval"
     )
     parser.add_argument(
-        "--log_interval", default=1, type=int, help="Log interval"
+        "--log-interval", default=1, type=int, help="Log interval"
     )
     parser.add_argument(
-        "--log_level", default="INFO", type=str, help="Log level"
+        "--log-level", default="INFO", type=str, help="Log level"
     )
     parser.add_argument(
-        "--eval_iters", default=200, type=int, help="Evaluation iterations"
+        "--eval-iters", default=200, type=int, help="Evaluation iterations"
     )
     parser.add_argument(
-        "--eval_only",
+        "--eval-only",
         default=False,
         action="store_true",
         help="Only evaluate the model",
     )
     parser.add_argument(
-        "--always_save_checkpoint",
+        "--always-save-checkpoint",
         default=True,
         action="store_true",
         help="Always save checkpoint after each evaluation",
     )
     parser.add_argument(
-        "--init_from",
+        "--init-from",
         default="scratch",
         type=str,
         choices=["scratch", "resume", "gpt2*"],
         help="Initialization mode: scratch, resume or gpt2*",
     )
-    # wandb logging
+    # Wandb logging
     parser.add_argument(
-        "--wandb_log",
+        "--wandb-log",
         default=False,
         action="store_true",
         help="Enable W&B logging",
     )
     parser.add_argument(
-        "--wandb_project", default="owt", type=str, help="W&B project name"
+        "--wandb-project", default="owt", type=str, help="W&B project name"
     )
     parser.add_argument(
-        "--wandb_run_name", default="gpt2", type=str, help="W&B run name"
+        "--wandb-run-name", default="gpt2", type=str, help="W&B run name"
     )
-    # data arguments
+
+    # Data arguments
     parser.add_argument(
         "--dataset", default="openwebtext", type=str, help="Dataset name"
     )
     parser.add_argument(
-        "--gradient_accumulation_steps",
+        "--gradient-accumulation-steps",
         default=5 * 8,
         type=int,
         help="Steps for gradient accumulation",
     )
     parser.add_argument(
-        "--batch_size", default=12, type=int, help="Batch size"
+        "--batch-size", default=12, type=int, help="Batch size"
     )
     parser.add_argument(
-        "--block_size", default=1024, type=int, help="Block size"
+        "--block-size", default=1024, type=int, help="Block size"
     )
-    # model arguments
+
+    # Model arguments
     parser.add_argument(
-        "--n_layer",
+        "--n-layer",
         default=12,
         type=int,
         help="Number of layers in the GPT model",
     )
     parser.add_argument(
-        "--n_head",
+        "--n-head",
         default=12,
         type=int,
         help="Number of heads in the GPT model",
     )
     parser.add_argument(
-        "--n_embd",
+        "--n-embd",
         default=768,
         type=int,
         help="Embedding dimension in the GPT model",
@@ -127,12 +129,27 @@ def parse_args():
         action="store_true",
         help="Use bias inside LayerNorm and Linear layers",
     )
-    # optimizer arguments
+
+    # MoE Settings
     parser.add_argument(
-        "--learning_rate", default=6e-4, type=float, help="Learning rate"
+        "--n-experts",
+        default=12,
+        type=int,
+        help="Number of experts for the MoE model.",
     )
     parser.add_argument(
-        "--max_iters",
+        "--top-k-experts",
+        default=6,
+        type=int,
+        help="Top k to consider for gating.",
+    )
+
+    # Optimizer arguments
+    parser.add_argument(
+        "--learning-rate", default=6e-4, type=float, help="Learning rate"
+    )
+    parser.add_argument(
+        "--max-iters",
         default=600000,
         type=int,
         help="Maximum number of training iterations",
@@ -141,10 +158,7 @@ def parse_args():
         "--mode", default="gpt", type=str, help="Mode to run the model"
     )
     parser.add_argument(
-        "--num_experts", default=12, type=int, help="Number of experts"
-    )
-    parser.add_argument(
-        "--weight_decay",
+        "--weight-decay",
         default=1e-1,
         type=float,
         help="Weight decay for optimizer",
@@ -156,29 +170,30 @@ def parse_args():
         "--beta2", default=0.95, type=float, help="Beta2 for optimizer"
     )
     parser.add_argument(
-        "--grad_clip", default=1.0, type=float, help="Gradient clipping value"
+        "--grad-clip", default=1.0, type=float, help="Gradient clipping value"
     )
-    # learning rate decay settings
+
+    # Learning rate decay settings
     parser.add_argument(
-        "--decay_lr",
+        "--decay-lr",
         default=True,
         action="store_true",
         help="Enable learning rate decay",
     )
     parser.add_argument(
-        "--warmup_iters",
+        "--warmup-iters",
         default=2000,
         type=int,
         help="Number of warmup iterations",
     )
     parser.add_argument(
-        "--lr_decay_iters",
+        "--lr-decay-iters",
         default=600000,
         type=int,
         help="Learning rate decay iterations",
     )
     parser.add_argument(
-        "--min_lr", default=6e-5, type=float, help="Minimum learning rate"
+        "--min-lr", default=6e-5, type=float, help="Minimum learning rate"
     )
     # DDP settings
     parser.add_argument(
@@ -188,18 +203,8 @@ def parse_args():
         choices=["nccl", "gloo"],
         help="Backend for DDP",
     )
-    # system arguments
-    parser.add_argument(
-        "--device", default="cuda", type=str, help="Device for training"
-    )
-    parser.add_argument(
-        "--dtype",
-        default="float16",
-        type=str,
-        choices=["float32", "bfloat16", "float16"],
-        help="Data type for training",
-    )
 
+    # System arguments
     def str2bool(v):
         if isinstance(v, bool):
             return v
@@ -210,6 +215,16 @@ def parse_args():
         else:
             raise argparse.ArgumentTypeError("Boolean value expected.")
 
+    parser.add_argument(
+        "--device", default="cuda", type=str, help="Device to use for training"
+    )
+    parser.add_argument(
+        "--dtype",
+        default="float16",
+        type=str,
+        choices=["float32", "bfloat16", "float16"],
+        help="Data type for training",
+    )
     parser.add_argument(
         "--compile",
         type=str2bool,

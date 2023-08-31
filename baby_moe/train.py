@@ -18,29 +18,29 @@ $ torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=123.456.123
 
 import argparse
 import logging
-import os
-import time
 import math
+import os
 import pickle
+import sys
+import time
+
+# from contextlib import AbstractContextManager
 from contextlib import nullcontext
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import numpy as np
 import torch
 from torch.cuda.amp import GradScaler
-from torch.distributed import init_process_group, destroy_process_group
+from torch.distributed import destroy_process_group, init_process_group
 from torch.nn import Module
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import Optimizer
-from contextlib import AbstractContextManager
-
-import sys
 
 sys.path.append("/Users/ocolegrove/babyMoE/baby_moe/nano_gpt")
 
-from nano_gpt.model import GPTConfig, GPT
 from moe import MoEGPT
-from utils import get_root_py_fpath, parse_args, get_configured_logger
+from nano_gpt.model import GPT, GPTConfig
+from utils import get_configured_logger, get_root_py_fpath, parse_args
 
 
 def load_config_and_overwrite_args(
@@ -50,7 +50,7 @@ def load_config_and_overwrite_args(
     config_load = open(args.config_file).read()
     logger.info(f"Reading config from {args.config_file}:\n{config_load}")
 
-    local_namespace = {}
+    local_namespace: dict = {}
     exec(config_load, globals(), local_namespace)
 
     new_vars = set(local_namespace.keys()) - set(local_vars_before.keys())
@@ -118,7 +118,7 @@ def get_batch(data: np.memmap) -> Tuple[torch.Tensor, torch.Tensor]:
     return x, y
 
 
-def setup_run_args(logger: logging.Logger, args: argparse.Namespace) -> dict:
+def setup_run_args(logger: logging.Logger, args: argparse.Namespace) -> None:
     """Setup the arguments for the run."""
     # sourcery skip: extract-method
 
@@ -160,9 +160,8 @@ def train_model(
     optimizer: Optimizer,
     scaler: GradScaler,
     train_data: np.memmap,
-    val_data: np.memmap,
-    device_type: str,
-    ctx: AbstractContextManager,
+    # TODO - Why does this fail type checks? ctx: AbstractContextManager,
+    ctx: Any,
     ddp: bool = False,
     raw_model: Optional[Module] = None,
 ) -> Tuple[int, float]:
@@ -252,6 +251,8 @@ def train_model(
             # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
             lossf = loss.item() * args.gradient_accumulation_steps
             if local_iter_num >= 5:  # let the training loop settle a bit
+                if not raw_model:
+                    raise ValueError("raw_model is None")
                 mfu = raw_model.estimate_mfu(
                     args.batch_size * args.gradient_accumulation_steps, dt
                 )
@@ -333,12 +334,12 @@ if __name__ == "__main__":
         model_args["vocab_size"] = (
             meta_vocab_size if meta_vocab_size is not None else 50304
         )
-        logger.info("Model is initializing with args:\n{model_args}")
+        logger.info(f"Model is initializing with args:\n{model_args}")
         gptconf = GPTConfig(**model_args)
         model = (
             GPT(gptconf)
             if args.mode == "gpt"
-            else MoEGPT(gptconf, args.num_experts)
+            else MoEGPT(gptconf, args.n_experts, args.top_k_experts)
         )
     elif args.init_from == "resume":
         logger.info(f"Resuming training from {args.out_dir}")
@@ -475,8 +476,6 @@ if __name__ == "__main__":
         optimizer,
         scaler,
         train_data,
-        val_data,
-        device_type,
         ctx,
         args.ddp,
         raw_model,

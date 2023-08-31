@@ -1,6 +1,7 @@
 """Additional classes to form a Mixture of Experts model on top of GPT."""
-from nano_gpt.model import GPT, Block
+import torch
 import torch.nn as nn
+from nano_gpt.model import GPT, Block
 from torch.nn import functional as F
 
 
@@ -19,25 +20,31 @@ class ExpertTransformerLayer(nn.Module):
 class GatingMechanism(nn.Module):
     """Mechanism to compute the weights for each expert based on the input tensor."""
 
-    def __init__(self, num_experts, input_dim):
+    def __init__(self, num_experts, input_dim, top_k=None):
         super(GatingMechanism, self).__init__()
         self.fc = nn.Linear(input_dim, num_experts)
+        self.num_experts = num_experts
+        self.top_k = top_k  # Number of experts to consider during gating
 
     def forward(self, x):
-        """Compute the softmax weights for each expert."""
-
-        return F.softmax(self.fc(x), dim=-1)
+        logits = self.fc(x)
+        if self.top_k and self.top_k < self.num_experts:
+            _, topk_indices = torch.topk(logits, self.top_k, dim=-1)
+            mask = logits.new_zeros(*logits.size())
+            mask.scatter_(-1, topk_indices, 1)
+            logits = logits * mask
+        return F.softmax(logits, dim=-1)
 
 
 class MixtureOfExpertsBlock(nn.Module):
     """A block combining multiple experts and a gating mechanism to produce a weighted output."""
 
-    def __init__(self, config, num_experts):
+    def __init__(self, config, num_experts, top_k=None):
         super(MixtureOfExpertsBlock, self).__init__()
         self.experts = nn.ModuleList(
             [ExpertTransformerLayer(config) for _ in range(num_experts)]
         )
-        self.gate = GatingMechanism(num_experts, config.n_embd)
+        self.gate = GatingMechanism(num_experts, config.n_embd, top_k)
 
     def forward(self, x, targets=None):
         """Compute the weighted output of the mixture of experts."""
@@ -57,11 +64,13 @@ class MixtureOfExpertsBlock(nn.Module):
 
 
 class MoEGPT(GPT):
-    def __init__(self, config, num_experts):
+    """GPT model with a Mixture of Experts mechanism on top."""
+
+    def __init__(self, config, num_experts, top_k=None):
         super(MoEGPT, self).__init__(config)
         self.transformer.h = nn.ModuleList(
             [
-                MixtureOfExpertsBlock(config, num_experts)
+                MixtureOfExpertsBlock(config, num_experts, top_k)
                 for _ in range(config.n_layer)
             ]
         )
