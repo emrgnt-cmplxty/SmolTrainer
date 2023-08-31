@@ -339,7 +339,7 @@ if __name__ == "__main__":
         model = (
             GPT(gptconf)
             if args.mode == "gpt"
-            else MoEGPT(gptconf, args.n_experts)  # , args.top_k_experts)
+            else MoEGPT(gptconf, args.n_experts, args.top_k_experts)
         )
     elif args.init_from == "resume":
         logger.info(f"Resuming training from {args.out_dir}")
