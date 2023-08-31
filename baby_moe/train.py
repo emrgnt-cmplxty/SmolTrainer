@@ -17,6 +17,7 @@ $ torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=123.456.123
 """
 
 import argparse
+import logging
 import os
 import time
 import math
@@ -39,13 +40,15 @@ sys.path.append("/Users/ocolegrove/babyMoE/baby_moe/nano_gpt")
 
 from nano_gpt.model import GPTConfig, GPT
 from moe import MoEGPT
-from utils import get_root_py_fpath, parse_args
+from utils import get_root_py_fpath, parse_args, get_configured_logger
 
 
-def load_config_and_overwrite_args(args: argparse.Namespace) -> None:
+def load_config_and_overwrite_args(
+    logger: logging.Logger, args: argparse.Namespace
+) -> None:
     local_vars_before = locals().copy()
     config_load = open(args.config_file).read()
-    print(f"Reading config from {args.config_file}:\n{config_load}")
+    logger.info(f"Reading config from {args.config_file}:\n{config_load}")
 
     local_namespace = {}
     exec(config_load, globals(), local_namespace)
@@ -57,6 +60,7 @@ def load_config_and_overwrite_args(args: argparse.Namespace) -> None:
 
 
 def load_data(
+    logger: logging.Logger,
     args: argparse.Namespace,
 ) -> Tuple[np.memmap, np.memmap, Optional[int]]:
     """Load training and validation data."""
@@ -80,14 +84,15 @@ def load_data(
         with open(meta_path, "rb") as f:
             meta = pickle.load(f)
         meta_vocab_size = meta["vocab_size"]
-        print(f"found vocab_size = {meta_vocab_size} (inside {meta_path})")
+        logger.info(
+            f"Found vocab_size = {meta_vocab_size} (inside {meta_path})"
+        )
 
     return (train_data, val_data, meta_vocab_size)
 
 
-def get_batch(split: str) -> Tuple[torch.Tensor, torch.Tensor]:
+def get_batch(data: np.memmap) -> Tuple[torch.Tensor, torch.Tensor]:
     """Get a batch of data from either the training or validation set."""
-    data = train_data if split == "train" else val_data
     ix = torch.randint(len(data) - args.block_size, (args.batch_size,))
     x = torch.stack(
         [
@@ -113,7 +118,7 @@ def get_batch(split: str) -> Tuple[torch.Tensor, torch.Tensor]:
     return x, y
 
 
-def setup_run_args(args: argparse.Namespace) -> dict:
+def setup_run_args(logger: logging.Logger, args: argparse.Namespace) -> dict:
     """Setup the arguments for the run."""
     # sourcery skip: extract-method
 
@@ -145,10 +150,11 @@ def setup_run_args(args: argparse.Namespace) -> dict:
         * args.batch_size
         * args.block_size
     )
-    print(f"tokens per iteration will be: {args.tokens_per_iter:,}")
+    logger.info(f"tokens per iteration will be: {args.tokens_per_iter:,}")
 
 
 def train_model(
+    logger: logging.Logger,
     args: argparse.Namespace,
     model: Module,
     optimizer: Optimizer,
@@ -160,7 +166,7 @@ def train_model(
     ddp: bool = False,
     raw_model: Optional[Module] = None,
 ) -> Tuple[int, float]:
-    X, Y = get_batch("train")  # fetch the very first batch
+    X, Y = get_batch(train_data)  # fetch the very first batch
     t0 = time.time()
     local_iter_num = 0  # number of iterations in the lifetime of this process
     running_mfu = -1.0
@@ -176,7 +182,7 @@ def train_model(
         # evaluate the loss on train/val sets and write checkpoints
         if iter_num % args.eval_interval == 0 and args.master_process:
             losses = estimate_loss()
-            print(
+            logger.info(
                 f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}"
             )
             if args.wandb_log:
@@ -200,7 +206,7 @@ def train_model(
                         "best_val_loss": best_val_loss,
                         "config": config,
                     }
-                    print(f"saving checkpoint to {args.out_dir}")
+                    logger.info(f"saving checkpoint to {args.out_dir}")
                     torch.save(
                         checkpoint, os.path.join(args.out_dir, "ckpt.pt")
                     )
@@ -224,7 +230,7 @@ def train_model(
                     loss / args.gradient_accumulation_steps
                 )  # scale the loss to account for gradient accumulation
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
-            X, Y = get_batch("train")
+            X, Y = get_batch(train_data)  # fetch the very first batch
             # backward pass, with gradient scaling if training in fp16
             scaler.scale(loss).backward()
         # clip the gradient
@@ -254,7 +260,7 @@ def train_model(
                     if running_mfu == -1.0
                     else 0.9 * running_mfu + 0.1 * mfu
                 )
-            print(
+            logger.info(
                 f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%"
             )
         iter_num += 1
@@ -269,12 +275,15 @@ def train_model(
 if __name__ == "__main__":
     args = parse_args()
     config = vars(args)
-    print(f"args = {args}")
+
+    logger = get_configured_logger(__name__, args.log_level)
+
+    logger.info(f"Running with passed in args:\n{args}")
 
     if args.config_file:
-        load_config_and_overwrite_args(args)
+        load_config_and_overwrite_args(logger, args)
 
-    setup_run_args(args)
+    setup_run_args(logger, args)
 
     if args.master_process:
         os.makedirs(args.out_dir, exist_ok=True)
@@ -296,8 +305,8 @@ if __name__ == "__main__":
         else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
     )
 
-    print(f"Running over {args.dataset}")
-    train_data, val_data, meta_vocab_size = load_data(args)
+    logger.info(f"Running over dataset = {args.dataset}")
+    train_data, val_data, meta_vocab_size = load_data(logger, args)
 
     # init these up here, can override if init_from='resume' (i.e. from a checkpoint)
     iter_num = 0
@@ -315,25 +324,24 @@ if __name__ == "__main__":
     )  # start with model_args from command line
     if args.init_from == "scratch":
         # init a new model from scratch
-        print("Initializing a new model from scratch")
+        logger.info("Initializing a new model from scratch")
         # determine the vocab size we'll use for from-scratch training
         if meta_vocab_size is None:
-            print(
+            logger.info(
                 "defaulting to vocab_size of GPT-2 to 50304 (50257 rounded up for efficiency)"
             )
         model_args["vocab_size"] = (
             meta_vocab_size if meta_vocab_size is not None else 50304
         )
-        print("model_args = ", model_args)
+        logger.info("Model is initializing with args:\n{model_args}")
         gptconf = GPTConfig(**model_args)
-        # model = (
-        #     GPT(gptconf)
-        #     if args.mode == "gpt"
-        #     else MoEGPT(gptconf, args.num_experts)
-        # )
-        model = GPT(gptconf)
+        model = (
+            GPT(gptconf)
+            if args.mode == "gpt"
+            else MoEGPT(gptconf, args.num_experts)
+        )
     elif args.init_from == "resume":
-        print(f"Resuming training from {args.out_dir}")
+        logger.info(f"Resuming training from {args.out_dir}")
         # resume training from a checkpoint.
         ckpt_path = os.path.join(args.out_dir, "ckpt.pt")
         checkpoint = torch.load(ckpt_path, map_location=args.device)
@@ -363,7 +371,9 @@ if __name__ == "__main__":
         iter_num = checkpoint["iter_num"]
         best_val_loss = checkpoint["best_val_loss"]
     elif args.init_from.startswith("gpt2"):
-        print(f"Initializing from OpenAI GPT-2 weights: {args.init_from}")
+        logger.info(
+            f"Initializing from OpenAI GPT-2 weights: {args.init_from}"
+        )
         # initialize from OpenAI GPT-2 weights
         override_args = dict(dropout=args.dropout)
         model = GPT.from_pretrained(args.init_from, override_args)
@@ -400,9 +410,8 @@ if __name__ == "__main__":
     checkpoint = None  # free up memory
 
     # compile the model
-    print("args.compile = ", args.compile)
     if args.compile:
-        print("compiling the model... (takes a ~minute)")
+        logger.info("Compiling the model... (takes a ~minute)")
         unoptimized_model = model
         model = torch.compile(model)  # requires PyTorch 2.0
 
@@ -418,7 +427,10 @@ if __name__ == "__main__":
         for split in ["train", "val"]:
             losses = torch.zeros(args.eval_iters)
             for k in range(args.eval_iters):
-                X, Y = get_batch(split)
+                X, Y = get_batch(
+                    train_data if split == "train" else val_data
+                )  # fetch the very first batch
+
                 with ctx:
                     logits, loss = model(X, Y)
                 losses[k] = loss.item()
@@ -457,6 +469,7 @@ if __name__ == "__main__":
     )  # unwrap DDP container if needed
 
     iter_num, best_val_loss = train_model(
+        logger,
         args,
         model,
         optimizer,

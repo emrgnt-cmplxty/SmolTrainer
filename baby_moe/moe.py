@@ -1,6 +1,5 @@
 """Additional classes to form a Mixture of Experts model on top of GPT."""
 from nano_gpt.model import GPT, Block
-import torch
 import torch.nn as nn
 from torch.nn import functional as F
 

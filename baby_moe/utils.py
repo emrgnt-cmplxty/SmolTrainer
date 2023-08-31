@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 
 
@@ -12,6 +13,16 @@ def get_root_fpath() -> str:
     """Get the path to the root of the baby_moe directory."""
 
     return os.path.join(get_root_py_fpath(), "..")
+
+
+def get_configured_logger(name: str, log_level: str) -> logging.Logger:
+    """Get a configured logger."""
+
+    log_level = getattr(logging, log_level.upper(), "INFO")
+    logging.basicConfig(
+        level=log_level, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+    return logging.getLogger(name)
 
 
 # TODO - Break this into multiple functions and/or configs
@@ -33,6 +44,9 @@ def parse_args():
     )
     parser.add_argument(
         "--log_interval", default=1, type=int, help="Log interval"
+    )
+    parser.add_argument(
+        "--log_level", default="INFO", type=str, help="Log level"
     )
     parser.add_argument(
         "--eval_iters", default=200, type=int, help="Evaluation iterations"
