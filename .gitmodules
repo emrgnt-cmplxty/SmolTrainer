@@ -1,0 +1,3 @@
+[submodule "baby_moe/nano_gpt"]
+	path = baby_moe/nano_gpt
+	url = https://github.com/karpathy/nanoGPT
