@@ -63,6 +63,8 @@ class MixtureOfExpertsBlock(nn.Module):
 
 
 class MoEGPT(GPT):
+    """GPT model with a Mixture of Experts mechanism on top."""
+
     def __init__(self, config, num_experts, k=None):
         super(MoEGPT, self).__init__(config)
         self.transformer.h = nn.ModuleList(
