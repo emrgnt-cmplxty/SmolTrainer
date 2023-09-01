@@ -1,6 +1,5 @@
 """Data loading utilities for training and validation."""
 
-import argparse
 import logging
 import os
 import pickle
@@ -10,15 +9,15 @@ import numpy as np
 import torch
 from utils import get_root_py_fpath
 
+from baby_moe.config import TrainConfig
+
 
 def load_data(
     logger: logging.Logger,
-    args: argparse.Namespace,
+    dataset: str,
 ) -> Tuple[np.memmap, np.memmap, Optional[int]]:
     """Load training and validation data."""
-    data_dir = os.path.join(
-        get_root_py_fpath(), "nano_gpt", "data", args.dataset
-    )
+    data_dir = os.path.join(get_root_py_fpath(), "nano_gpt", "data", dataset)
     train_data = np.memmap(
         os.path.join(get_root_py_fpath(), data_dir, "train.bin"),
         dtype=np.uint16,
@@ -44,29 +43,31 @@ def load_data(
 
 
 def get_batch(
-    args: argparse.Namespace, data: np.memmap
+    config: TrainConfig, data: np.memmap
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Get a batch of data from either the training or validation set."""
-    ix = torch.randint(len(data) - args.block_size, (args.batch_size,))
+    ix = torch.randint(len(data) - config.block_size, (config.batch_size,))
     x = torch.stack(
         [
-            torch.from_numpy((data[i : i + args.block_size]).astype(np.int64))
+            torch.from_numpy(
+                (data[i : i + config.block_size]).astype(np.int64)
+            )
             for i in ix
         ]
     )
     y = torch.stack(
         [
             torch.from_numpy(
-                (data[i + 1 : i + 1 + args.block_size]).astype(np.int64)
+                (data[i + 1 : i + 1 + config.block_size]).astype(np.int64)
             )
             for i in ix
         ]
     )
-    if args.device_type == "cuda":
+    if config.device_type == "cuda":
         # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
         x, y = x.pin_memory().to(
-            args.device, non_blocking=True
-        ), y.pin_memory().to(args.device, non_blocking=True)
+            config.device, non_blocking=True
+        ), y.pin_memory().to(config.device, non_blocking=True)
     else:
-        x, y = x.to(args.device), y.to(args.device)
+        x, y = x.to(config.device), y.to(config.device)
     return x, y

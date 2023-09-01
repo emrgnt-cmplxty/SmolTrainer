@@ -2,6 +2,7 @@
 import argparse
 import logging
 import os
+from dataclasses import fields, is_dataclass
 
 
 def get_root_py_fpath() -> str:
@@ -51,12 +52,6 @@ def parse_args():
     )
     parser.add_argument(
         "--eval-iters", default=200, type=int, help="Evaluation iterations"
-    )
-    parser.add_argument(
-        "--eval-only",
-        default=False,
-        action="store_true",
-        help="Only evaluate the model",
     )
     parser.add_argument(
         "--always-save-checkpoint",
@@ -241,3 +236,25 @@ def parse_args():
     )
 
     return parser.parse_args()
+
+
+def custom_asdict(obj) -> dict:
+    import _thread
+
+    if is_dataclass(obj):
+        result = {}
+        for f in fields(obj):
+            value = getattr(obj, f.name)
+            # Check if value is a thread lock or any other non-pickleable type
+            # Modify this check as per your needs
+            if isinstance(value, _thread.RLock):
+                result[f.name] = "Skipped due to non-pickleable type"
+            else:
+                result[f.name] = custom_asdict(value)
+        return result
+    elif isinstance(obj, (list, tuple)):
+        return [custom_asdict(x) for x in obj]
+    elif isinstance(obj, dict):
+        return {k: custom_asdict(v) for k, v in obj.items()}
+    else:
+        return obj

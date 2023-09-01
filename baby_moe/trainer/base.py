@@ -1,53 +1,76 @@
 """Base training loop for Baby MoE."""
 
-import argparse
-import logging
 import math
 import threading
 import time
 
 # from contextlib import AbstractContextManager
-from typing import Any, Tuple
+from typing import Any
 
 import numpy as np
 import torch
 from torch.cuda.amp import GradScaler
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.utils.tensorboard import SummaryWriter
 
 import wandb
-from baby_moe.trainer.checkpointer import (
-    get_project_identifier,
-    manage_checkpoints,
-    save_checkpoint,
-)
+from baby_moe.config.train import LearningConfig, TrainConfig
+from baby_moe.trainer.checkpointer import manage_checkpoints, save_checkpoint
 from baby_moe.trainer.data_loader import get_batch
+from baby_moe.utils import custom_asdict
+
+# ========================== Learning Rate Logic ==========================
 
 
-# learning rate decay scheduler (cosine with warmup)
-def get_lr(args: argparse.Namespace, it: int):
-    """Get the learning rate for the given iteration."""
+def linear_warmup_lr(lr_config: LearningConfig, it):
+    """Calculate learning rate during the warmup phase."""
+    return lr_config.initial_lr * it / lr_config.warmup_iters
 
-    # 1) linear warmup for warmup_iters steps
-    if it < args.warmup_iters:
-        return args.initial_lr * it / args.warmup_iters
-    # 2) if it > lr_decay_iters, return min learning rate
-    if it > args.lr_decay_iters:
-        return args.min_lr
-    # 3) in between, use cosine decay down to min learning rate
-    decay_ratio = (it - args.warmup_iters) / (
-        args.lr_decay_iters - args.warmup_iters
+
+def cosine_decay_lr(lr_config: LearningConfig, it):
+    """Calculate learning rate using cosine decay."""
+    decay_ratio = (it - lr_config.warmup_iters) / (
+        lr_config.lr_decay_iters - lr_config.warmup_iters
     )
-    assert 0 <= decay_ratio <= 1
-    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
-    return args.min_lr + coeff * (args.initial_lr - args.min_lr)
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
+    return lr_config.min_lr + coeff * (lr_config.initial_lr - lr_config.min_lr)
+
+
+def get_lr(lr_config: LearningConfig, it: int):
+    """Get the learning rate for the given iteration."""
+    if it < lr_config.warmup_iters:
+        return linear_warmup_lr(lr_config, it)
+    elif it > lr_config.lr_decay_iters:
+        return lr_config.min_lr
+    else:
+        return cosine_decay_lr(lr_config, it)
+
+
+# ========================== Logging Logic ==========================
+
+
+def log_metrics(
+    config: TrainConfig,
+    lossf: float,
+    dt: float,
+):
+    """Log metrics during training."""
+    config.tb_writer.add_scalar("Training Loss", lossf, config.iter_num)
+    config.tb_writer.add_scalar(
+        "Learning Rate", config.lr_config.lr, config.iter_num
+    )
+    config.logger.info(
+        f"iter {config.iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, 100*mfu {config.running_mfu*100*100:.2f}%"
+    )
+
+
+# ========================== Evaluation Logic ==========================
 
 
 @torch.no_grad()
 def estimate_loss(
-    args: argparse.Namespace,
-    ctx: Any,
+    config: TrainConfig,
+    amp_context: Any,
     model: Module,
     train_data: np.memmap,
     val_data: np.memmap,
@@ -57,198 +80,168 @@ def estimate_loss(
     out = {}
     model.eval()
     for split in ["train", "val"]:
-        losses = torch.zeros(args.eval_iters)
-        for k in range(args.eval_iters):
+        losses = torch.zeros(config.eval_iters)
+        for k in range(config.eval_iters):
             X, Y = get_batch(
-                args, train_data if split == "train" else val_data
+                config, train_data if split == "train" else val_data
             )  # fetch the very first batch
 
-            with ctx:
-                logits, loss = model(X, Y)
+            with amp_context:
+                _, loss = model(X, Y)
             losses[k] = loss.item()
         out[split] = losses.mean()
     model.train()
     return out
 
 
-def initialize_run_performance_logging(
-    args: argparse.Namespace,
-) -> SummaryWriter:
-    """Initialize logging with WandB and TensorBoard."""
-
-    if args.wandb_log and args.master_process:
-        wandb.init(
-            project=get_project_identifier(args),
-            name=args.run_name,
-            config=vars(args),
-        )
-
-    return SummaryWriter(log_dir=args.tensorboard_path)
-
-
 def perform_evaluation(
-    args: argparse.Namespace,
-    logger: logging.Logger,
-    tb_writer: SummaryWriter,
+    config: TrainConfig,
     optimizer: Optimizer,
     model: Module,
     raw_model: Module,
     train_data: np.memmap,
     val_data: np.memmap,
-    iter_num: int,
-    best_val_loss: float,
-    running_mfu: float,
-    ctx: Any,
-):
+    amp_context: Any,
+) -> None:
     """Evaluate the model and save checkpoints if necessary."""
-    losses = estimate_loss(args, ctx, model, train_data, val_data)
-    logger.info(
-        f"iter {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}"
+    losses = estimate_loss(config, amp_context, model, train_data, val_data)
+
+    config.total_time = time.time() - config.initial_time
+    config.logger.info(
+        f"Eval @ iter = {config.iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}, total time {config.total_time:.2f}"
     )
-    tb_writer.add_scalar("Validation Loss", losses["val"], iter_num)
+    config.tb_writer.add_scalar(
+        "Validation Loss", losses["val"], config.iter_num
+    )
+    config.tb_writer.add_scalar("Time", config.total_time, config.iter_num)
 
     # Logging with WandB
-    if args.wandb_log:
+    if config.wandb_log:
         wandb.log(
             {
-                "iter": iter_num,
+                "iter": config.iter_num,
                 "train/loss": losses["train"],
                 "val/loss": losses["val"],
-                "lr": args.lr,
-                "mfu": running_mfu * 100,  # convert to percentage
+                "lr": config.lr_config.lr,
+                "mfu": config.running_mfu * 100,  # convert to percentage
             }
         )
 
     # Save checkpoint and manage old checkpoints
-    if losses["val"] < best_val_loss or args.always_save_checkpoint:
-        best_val_loss, train_loss = losses["val"], losses["train"]
-        if iter_num > 0:
+    if losses["val"] < config.best_val_loss or config.always_save_checkpoint:
+        config.best_val_loss, training_loss = losses["val"], losses["train"]
+        config.training_loss = training_loss
+        if config.iter_num > 0:
+            output_config = custom_asdict(config)
+            output_config.pop("logger")
+            output_config.pop("tb_writer")
             save_checkpoint(
-                args,
+                output_config,
                 raw_model,
                 optimizer,
-                iter_num,
-                best_val_loss,
-                train_loss,
-                running_mfu,
             )
-            thread = threading.Thread(target=manage_checkpoints, args=(args,))
+            thread = threading.Thread(
+                target=manage_checkpoints, args=(output_config,)
+            )
             thread.start()
-
-    return best_val_loss
 
 
 def train_model(
-    logger: logging.Logger,
-    args: argparse.Namespace,
     model: Module,
     optimizer: Optimizer,
     scaler: GradScaler,
     train_data: np.memmap,
     val_data: np.memmap,
-    # TODO - Track down the types for these
-    # Why does ctx: AbstractContextManager fail?
-    ctx: Any,
+    # TODO - Track down the type for amp_context
+    # Why does amp_context: AbstractContextManager fail?
+    config: TrainConfig,
+    amp_context: Any,
     raw_model: Module,
-) -> Tuple[int, float]:
+) -> None:
     """Train the model."""
     # TODO - Break this function up into smaller functions
 
-    # Initialize the logging for the run
-    tb_writer = initialize_run_performance_logging(args)
-
-    X, Y = get_batch(args, train_data)  # fetch the very first batch
+    lr_config = config.lr_config
+    # Fetch the very first batch
+    X, Y = get_batch(config, train_data)
     t0 = time.time()
-    local_iter_num = 0  # number of iterations in the lifetime of this process
-    running_mfu = -1.0
-    iter_num = 0
-    best_val_loss = 1e9
 
-    while True:
+    for local_iter_num, iter_num in enumerate(
+        range(config.iter_num, config.max_iters + 1)
+    ):
+        config.iter_num = iter_num
+
         # determine and set the learning rate for this iteration
-        lr = get_lr(args, iter_num) if args.decay_lr else args.initial_lr
+        lr = (
+            get_lr(lr_config, iter_num)
+            if lr_config.decay_lr
+            else lr_config.initial_lr
+        )
         for param_group in optimizer.param_groups:
             param_group["lr"] = lr
-        args.lr = lr
+        lr_config.lr = lr
 
         # evaluate the loss on train/val sets and write checkpoints
-        if iter_num % args.eval_interval == 0 and args.master_process:
-            best_val_loss = perform_evaluation(
-                args,
-                logger,
-                tb_writer,
+        if iter_num % config.eval_interval == 0 and config.master_process:
+            perform_evaluation(
+                config,
                 optimizer,
                 model,
                 raw_model,
                 train_data,
                 val_data,
-                iter_num,
-                best_val_loss,
-                running_mfu,
-                ctx,
+                amp_context,
             )
-            if iter_num == 0 and args.eval_only:
-                break
 
         # forward backward update, with optional gradient accumulation to simulate larger batch size
         # and using the GradScaler if data type is float16
-        for micro_step in range(args.gradient_accumulation_steps):
-            if args.ddp:
+        for micro_step in range(lr_config.gradient_accumulation_steps):
+            if config.ddp:
                 # in DDP training we only need to sync gradients at the last micro step.
                 # the official way to do this is with model.no_sync() context manager, but
                 # I really dislike that this bloats the code and forces us to repeat code
                 # looking at the source of that context manager, it just toggles this variable
                 model.require_backward_grad_sync = (
-                    micro_step == args.gradient_accumulation_steps - 1
+                    micro_step == lr_config.gradient_accumulation_steps - 1
                 )
-            with ctx:
+            with amp_context:
                 _, loss = model(X, Y)
                 loss = (
-                    loss / args.gradient_accumulation_steps
+                    loss / lr_config.gradient_accumulation_steps
                 )  # scale the loss to account for gradient accumulation
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
-            X, Y = get_batch(args, train_data)  # fetch the very first batch
+            X, Y = get_batch(config, train_data)  # fetch the very first batch
             # backward pass, with gradient scaling if training in fp16
             scaler.scale(loss).backward()
         # clip the gradient
-        if args.grad_clip != 0.0:
+        if lr_config.grad_clip != 0.0:
             scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+            torch.nn.utils.clip_grad_norm_(
+                model.parameters(), lr_config.grad_clip
+            )
         # step the optimizer and scaler if training in fp16
         scaler.step(optimizer)
         scaler.update()
         # flush the gradients as soon as we can, no need for this memory anymore
         optimizer.zero_grad(set_to_none=True)
 
-        # timing and logging
-        t1 = time.time()
-        dt = t1 - t0
-        t0 = t1
-        if iter_num % args.log_interval == 0 and args.master_process:
-            # get loss as float. note: this is a CPU-GPU sync point
-            # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
-            lossf = loss.item() * args.gradient_accumulation_steps
-            if local_iter_num >= 5:  # let the training loop settle a bit
+        if iter_num % config.log_interval == 0 and config.master_process:
+            # Calculate elapsed time
+            dt = time.time() - t0
+            t0 = time.time()
+
+            # Get loss and update metrics
+            lossf = loss.item() * lr_config.gradient_accumulation_steps
+            if local_iter_num >= 5:
                 mfu = raw_model.estimate_mfu(
-                    args.batch_size * args.gradient_accumulation_steps, dt
+                    config.batch_size * lr_config.gradient_accumulation_steps,
+                    dt,
                 )
-                running_mfu = (
+                config.running_mfu = (
                     mfu
-                    if running_mfu == -1.0
-                    else 0.9 * running_mfu + 0.1 * mfu
+                    if config.running_mfu == -1.0
+                    else 0.9 * config.running_mfu + 0.1 * mfu
                 )
 
-            # In the training loop, log metrics to TensorBoard
-            tb_writer.add_scalar("Training Loss", lossf, iter_num)
-            tb_writer.add_scalar("Learning Rate", args.lr, iter_num)
-
-            logger.info(
-                f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, 100*mfu {running_mfu*100*100:.2f}%"
-            )
-        iter_num += 1
-        local_iter_num += 1
-
-        # termination conditions
-        if iter_num > args.max_iters:
-            break
-    return iter_num, best_val_loss
+            log_metrics(config, lossf, dt)
+    return
