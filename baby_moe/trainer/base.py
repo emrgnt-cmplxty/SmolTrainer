@@ -3,6 +3,7 @@
 import argparse
 import logging
 import math
+import os
 import threading
 import time
 
@@ -14,8 +15,13 @@ import torch
 from torch.cuda.amp import GradScaler
 from torch.nn import Module
 from torch.optim import Optimizer
+from torch.utils.tensorboard import SummaryWriter
 
-from baby_moe.trainer.checkpointer import manage_checkpoints, save_checkpoint
+from baby_moe.trainer.checkpointer import (
+    get_checkpoint_prefix,
+    manage_checkpoints,
+    save_checkpoint,
+)
 from baby_moe.trainer.data_loader import get_batch
 
 
@@ -97,6 +103,13 @@ def train_model(
     iter_num = 0
     best_val_loss = 1e9
 
+    tensorboard_path = os.path.join(
+        args.out_dir, f"{get_checkpoint_prefix(args)}__tensorboard"
+    )
+
+    # Initialize the TensorBoard writer
+    tb_writer = SummaryWriter(log_dir=tensorboard_path)
+
     while True:
         # determine and set the learning rate for this iteration
         lr = get_lr(args, iter_num) if args.decay_lr else args.learning_rate
@@ -107,8 +120,10 @@ def train_model(
         if iter_num % args.eval_interval == 0 and args.master_process:
             losses = estimate_loss(args, ctx, model, train_data, val_data)
             logger.info(
-                f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}"
+                f"iter {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}"
             )
+            tb_writer.add_scalar("Validation Loss", losses["val"], iter_num)
+
             if args.wandb_log:
                 wandb.log(
                     {
@@ -188,6 +203,11 @@ def train_model(
                     if running_mfu == -1.0
                     else 0.9 * running_mfu + 0.1 * mfu
                 )
+
+            # In the training loop, log metrics to TensorBoard
+            tb_writer.add_scalar("Training Loss", lossf, iter_num)
+            tb_writer.add_scalar("Learning Rate", args.learning_rate, iter_num)
+
             logger.info(
                 f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, 100*mfu {running_mfu*100*100:.2f}%"
             )
