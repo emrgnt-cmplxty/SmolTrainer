@@ -33,6 +33,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 sys.path.append("/Users/ocolegrove/babyMoE/baby_moe/nano_gpt")
 from baby_moe.trainer import (
     crop_and_move_model,
+    get_checkpoint_prefix,
     initialize_model_from_checkpoint,
     initialize_model_from_gpt2,
     initialize_model_from_scratch,
@@ -101,6 +102,15 @@ def setup_run_args(logger: logging.Logger, args: argparse.Namespace) -> None:
     args.iter_num = 0
     args.best_val_loss = 1e9
 
+    prefix = get_checkpoint_prefix(args)
+    args.tensorboard_path = os.path.join(
+        args.out_dir, f"{prefix}__tensorboard"
+    )
+    args.checkpoint_dir = os.path.join(
+        args.out_dir,
+        prefix,
+    )
+
     logger.info(f"tokens per iteration will be: {args.tokens_per_iter:,}")
 
 
@@ -134,6 +144,13 @@ def setup_training_environment(args: argparse.Namespace) -> Any:
     torch.manual_seed(1337 + args.seed_offset)
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
+
+    if os.path.exists(args.checkpoint_dir) or os.path.exists(
+        args.tensorboard_path
+    ):
+        raise ValueError(
+            f"Checkpoint directory {args.checkpoint_dir} or {args.tensorboard_path} already exists, please move before re-running."
+        )
     return setup_amp_context(args)
 
 

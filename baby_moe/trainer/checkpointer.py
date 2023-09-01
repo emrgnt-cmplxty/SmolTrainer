@@ -14,16 +14,17 @@ from baby_moe.utils import get_configured_logger
 
 def get_checkpoint_prefix(args: argparse.Namespace) -> str:
     """Returns the name of the checkpoint file"""
-    return f"checkpoint__n_layer_{args.n_layer}__n_head_{args.n_head}__n_embd_{args.n_embd}__n_experts_{args.n_experts}__top_k_experts_{args.top_k_experts}"
+    return f"checkpoint__mode_{args.mode}__n_layer_{args.n_layer}__n_head_{args.n_head}__n_embd_{args.n_embd}__n_experts_{args.n_experts}__top_k_experts_{args.top_k_experts}"
 
 
 def manage_checkpoints(args: argparse.Namespace) -> None:
     """Manage the checkpoints: save, delete old ones"""
     # List all checkpoints
     prefix = get_checkpoint_prefix(args)
-    file_name = f"{prefix}__iter_*.pt"
+    file_name = f"{prefix}__iter_num_*.pt"
     checkpoints = sorted(
-        glob.glob(os.path.join(args.out_dir, prefix, file_name))
+        glob.glob(os.path.join(args.out_dir, prefix, file_name)),
+        key=lambda x: int(x.split("__iter_num_")[-1].split(".pt")[0]),
     )
 
     # Remove older checkpoints
@@ -45,6 +46,8 @@ def save_checkpoint(
 
     checkpoint = {
         # Model & Optimizer state
+        "mode": args.mode,
+        "model_args": args.model_args,
         "model": model.state_dict(),
         "optimizer": optimizer.state_dict(),
         # Model hyperparameters
@@ -72,16 +75,10 @@ def save_checkpoint(
     }
 
     prefix = get_checkpoint_prefix(args)
-
-    # Save the checkpoint
-    checkpoint_dir = os.path.join(
-        args.out_dir,
-        prefix,
-    )
-    os.makedirs(checkpoint_dir, exist_ok=True)
+    os.makedirs(args.checkpoint_dir, exist_ok=True)
 
     temp_checkpoint_path = os.path.join(
-        checkpoint_dir, f"{prefix}__iter_num_{iter_num}.temp"
+        args.checkpoint_dir, f"{prefix}__iter_num_{iter_num}.temp"
     )
     checkpoint_path = temp_checkpoint_path.replace(".temp", ".pt")
 

@@ -16,6 +16,7 @@ def initialize_optimizer(
     args: argparse.Namespace, model: Module, checkpoint: Any = None
 ):
     """Initialize optimizer and load its state if resuming from a checkpoint."""
+
     optimizer = model.configure_optimizers(
         args.weight_decay,
         args.learning_rate,
@@ -33,6 +34,7 @@ def initialize_model_from_scratch(
     logger: logging.Logger,
 ) -> Module:
     """Initialize a new model from scratch."""
+
     logger.info("Initializing a new model from scratch")
 
     if meta_vocab_size is None:
@@ -55,6 +57,7 @@ def initialize_model_from_checkpoint(
     args: argparse.Namespace, logger: logging.Logger
 ) -> Tuple[Module, Any]:  # TODO - Find a correct type for the checkpoint.
     """Resume training from a checkpoint."""
+
     logger.info(f"Resuming training from {args.out_dir}")
 
     ckpt_path = os.path.join(args.out_dir, "ckpt.pt")
@@ -92,6 +95,7 @@ def initialize_model_from_gpt2(
     args: argparse.Namespace, logger: logging.Logger
 ) -> GPT:
     """Initialize from OpenAI GPT-2 weights."""
+
     logger.info(f"Initializing from OpenAI GPT-2 weights: {args.init_from}")
 
     override_args = dict(dropout=args.dropout)
@@ -112,6 +116,7 @@ def initialize_model_from_gpt2(
 
 def crop_and_move_model(args: argparse.Namespace, model: Module) -> Module:
     """Handle model cropping and device transfer."""
+
     if args.block_size < model.config.block_size:
         model.crop_block_size(args.block_size)
         args.model_args[
