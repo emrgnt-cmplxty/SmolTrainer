@@ -1,3 +1,11 @@
+# Generated Data
 results/
+wandb/
+
+# Python Cruft
 __pycache__/
+
+# Hidden conf files
+.env
+.vscode
 .DS_Store

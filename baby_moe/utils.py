@@ -71,18 +71,15 @@ def parse_args():
         choices=["scratch", "resume", "gpt2*"],
         help="Initialization mode: scratch, resume or gpt2*",
     )
-    # Wandb logging
+    parser.add_argument(
+        "--run-name", default="run_0", type=str, help="Specify the run name."
+    )
+    # WandB logging
     parser.add_argument(
         "--wandb-log",
         default=False,
         action="store_true",
         help="Enable W&B logging",
-    )
-    parser.add_argument(
-        "--wandb-project", default="owt", type=str, help="W&B project name"
-    )
-    parser.add_argument(
-        "--wandb-run-name", default="gpt2", type=str, help="W&B run name"
     )
 
     # Data arguments
@@ -147,7 +144,10 @@ def parse_args():
 
     # Optimizer arguments
     parser.add_argument(
-        "--learning-rate", default=6e-4, type=float, help="Learning rate"
+        "--initial-lr",
+        default=6e-4,
+        type=float,
+        help="Learning rate",
     )
     parser.add_argument(
         "--max-iters",

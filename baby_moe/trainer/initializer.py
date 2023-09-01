@@ -19,7 +19,7 @@ def initialize_optimizer(
 
     optimizer = model.configure_optimizers(
         args.weight_decay,
-        args.learning_rate,
+        args.initial_lr,
         (args.beta1, args.beta2),
         args.device_type,
     )
