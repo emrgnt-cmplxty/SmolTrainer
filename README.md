@@ -39,3 +39,10 @@ poetry run python baby_moe/runner.py --device=cpu --compile=False --eval-iters=2
 # Monitor your progress
 poetry run tensorboard --logdir=results
 ```
+
+## Evaluate
+
+```bash
+# Run simple inference your model
+poetry run python baby_moe/inference.py
+```

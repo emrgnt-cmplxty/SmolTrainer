@@ -14,7 +14,8 @@ from baby_moe.utils import get_configured_logger
 
 def get_checkpoint_prefix(args: argparse.Namespace) -> str:
     """Returns the name of the checkpoint file"""
-    return f"checkpoint__mode_{args.mode}__n_layer_{args.n_layer}__n_head_{args.n_head}__n_embd_{args.n_embd}__n_experts_{args.n_experts}__top_k_experts_{args.top_k_experts}"
+    mode = "gpt" if args.mode == "gpt" else "moe"
+    return f"checkpoint__mode_{mode}__n_layer_{args.n_layer}__n_head_{args.n_head}__n_embd_{args.n_embd}__n_experts_{args.n_experts}__top_k_experts_{args.top_k_experts}"
 
 
 def manage_checkpoints(args: argparse.Namespace) -> None:

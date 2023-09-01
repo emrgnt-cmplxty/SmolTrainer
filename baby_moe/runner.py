@@ -19,7 +19,6 @@ $ torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=123.456.123
 import argparse
 import logging
 import os
-import sys
 
 # from contextlib import AbstractContextManager
 from contextlib import nullcontext
@@ -30,7 +29,6 @@ from torch.distributed import destroy_process_group, init_process_group
 from torch.nn import Module
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-sys.path.append("/Users/ocolegrove/babyMoE/baby_moe/nano_gpt")
 from baby_moe.trainer import (
     crop_and_move_model,
     get_checkpoint_prefix,

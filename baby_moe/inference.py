@@ -29,8 +29,8 @@ dtype = (
     else "float16"
 )  # 'float32' or 'bfloat16' or 'float16'
 compile = False  # use PyTorch 2.0 to compile the model to be faster
-model_prefix = "checkpoint__n_layer_12__n_head_4__n_embd_128__n_experts_8__top_k_experts_8"
-iter_num = "950"
+model_prefix = "checkpoint__mode_moe__n_layer_4__n_head_4__n_embd_128__n_experts_128__top_k_experts_16"
+iter_num = "2000"
 exec(
     open("baby_moe/nano_gpt/configurator.py").read()
 )  # overrides from command line or config file
@@ -62,7 +62,13 @@ if init_from == "resume":
     )
     checkpoint = torch.load(ckpt_path, map_location=device)
     gptconf = GPTConfig(**checkpoint["model_args"])
-    model = GPT(gptconf) if checkpoint["mode"] == "gpt" else MoEGPT(gptconf)
+    model = (
+        GPT(gptconf)
+        if checkpoint["mode"] == "gpt"
+        else MoEGPT(
+            gptconf, checkpoint["n_experts"], checkpoint["top_k_experts"]
+        )
+    )
     state_dict = checkpoint["model"]
     unwanted_prefix = "_orig_mod."
     for k, v in list(state_dict.items()):
@@ -86,7 +92,11 @@ if (
     and "dataset" in checkpoint["config"]
 ):  # older checkpoints might not have these...
     meta_path = os.path.join(
-        "data", checkpoint["config"]["dataset"], "meta.pkl"
+        "baby_moe",
+        "nano_gpt",
+        "data",
+        checkpoint["config"]["dataset"],
+        "meta.pkl",
     )
     load_meta = os.path.exists(meta_path)
 if load_meta:
