@@ -16,7 +16,12 @@ from torch.nn import Module
 from torch.optim import Optimizer
 from torch.utils.tensorboard import SummaryWriter
 
-from baby_moe.trainer.checkpointer import manage_checkpoints, save_checkpoint
+import wandb
+from baby_moe.trainer.checkpointer import (
+    get_project_identifier,
+    manage_checkpoints,
+    save_checkpoint,
+)
 from baby_moe.trainer.data_loader import get_batch
 
 
@@ -26,7 +31,7 @@ def get_lr(args: argparse.Namespace, it: int):
 
     # 1) linear warmup for warmup_iters steps
     if it < args.warmup_iters:
-        return args.learning_rate * it / args.warmup_iters
+        return args.initial_lr * it / args.warmup_iters
     # 2) if it > lr_decay_iters, return min learning rate
     if it > args.lr_decay_iters:
         return args.min_lr
@@ -36,10 +41,9 @@ def get_lr(args: argparse.Namespace, it: int):
     )
     assert 0 <= decay_ratio <= 1
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
-    return args.min_lr + coeff * (args.learning_rate - args.min_lr)
+    return args.min_lr + coeff * (args.initial_lr - args.min_lr)
 
 
-# helps estimate an arbitrarily accurate loss over either split using many batches
 @torch.no_grad()
 def estimate_loss(
     args: argparse.Namespace,
@@ -47,7 +51,9 @@ def estimate_loss(
     model: Module,
     train_data: np.memmap,
     val_data: np.memmap,
-):
+) -> dict:
+    """Estimate the loss on the training and validation sets."""
+
     out = {}
     model.eval()
     for split in ["train", "val"]:
@@ -63,6 +69,73 @@ def estimate_loss(
         out[split] = losses.mean()
     model.train()
     return out
+
+
+def initialize_run_performance_logging(
+    args: argparse.Namespace,
+) -> SummaryWriter:
+    """Initialize logging with WandB and TensorBoard."""
+
+    if args.wandb_log and args.master_process:
+        wandb.init(
+            project=get_project_identifier(args),
+            name=args.run_name,
+            config=vars(args),
+        )
+
+    return SummaryWriter(log_dir=args.tensorboard_path)
+
+
+def perform_evaluation(
+    args: argparse.Namespace,
+    logger: logging.Logger,
+    tb_writer: SummaryWriter,
+    optimizer: Optimizer,
+    model: Module,
+    raw_model: Module,
+    train_data: np.memmap,
+    val_data: np.memmap,
+    iter_num: int,
+    best_val_loss: float,
+    running_mfu: float,
+    ctx: Any,
+):
+    """Evaluate the model and save checkpoints if necessary."""
+    losses = estimate_loss(args, ctx, model, train_data, val_data)
+    logger.info(
+        f"iter {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}"
+    )
+    tb_writer.add_scalar("Validation Loss", losses["val"], iter_num)
+
+    # Logging with WandB
+    if args.wandb_log:
+        wandb.log(
+            {
+                "iter": iter_num,
+                "train/loss": losses["train"],
+                "val/loss": losses["val"],
+                "lr": args.lr,
+                "mfu": running_mfu * 100,  # convert to percentage
+            }
+        )
+
+    # Save checkpoint and manage old checkpoints
+    if losses["val"] < best_val_loss or args.always_save_checkpoint:
+        best_val_loss, train_loss = losses["val"], losses["train"]
+        if iter_num > 0:
+            save_checkpoint(
+                args,
+                raw_model,
+                optimizer,
+                iter_num,
+                best_val_loss,
+                train_loss,
+                running_mfu,
+            )
+            thread = threading.Thread(target=manage_checkpoints, args=(args,))
+            thread.start()
+
+    return best_val_loss
 
 
 def train_model(
@@ -81,15 +154,8 @@ def train_model(
     """Train the model."""
     # TODO - Break this function up into smaller functions
 
-    # logging
-    if args.wandb_log and args.master_process:
-        import wandb
-
-        wandb.init(
-            project=args.wandb_project,
-            name=args.wandb_run_name,
-            config=vars(args),
-        )
+    # Initialize the logging for the run
+    tb_writer = initialize_run_performance_logging(args)
 
     X, Y = get_batch(args, train_data)  # fetch the very first batch
     t0 = time.time()
@@ -98,54 +164,31 @@ def train_model(
     iter_num = 0
     best_val_loss = 1e9
 
-    # Initialize the TensorBoard writer
-    tb_writer = SummaryWriter(log_dir=args.tensorboard_path)
-
     while True:
         # determine and set the learning rate for this iteration
-        lr = get_lr(args, iter_num) if args.decay_lr else args.learning_rate
+        lr = get_lr(args, iter_num) if args.decay_lr else args.initial_lr
         for param_group in optimizer.param_groups:
             param_group["lr"] = lr
+        args.lr = lr
 
         # evaluate the loss on train/val sets and write checkpoints
         if iter_num % args.eval_interval == 0 and args.master_process:
-            losses = estimate_loss(args, ctx, model, train_data, val_data)
-            logger.info(
-                f"iter {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}"
+            best_val_loss = perform_evaluation(
+                args,
+                logger,
+                tb_writer,
+                optimizer,
+                model,
+                raw_model,
+                train_data,
+                val_data,
+                iter_num,
+                best_val_loss,
+                running_mfu,
+                ctx,
             )
-            tb_writer.add_scalar("Validation Loss", losses["val"], iter_num)
-
-            if args.wandb_log:
-                wandb.log(
-                    {
-                        "iter": iter_num,
-                        "train/loss": losses["train"],
-                        "val/loss": losses["val"],
-                        "lr": lr,
-                        "mfu": running_mfu * 100,  # convert to percentage
-                    }
-                )
-            if losses["val"] < best_val_loss or args.always_save_checkpoint:
-                best_val_loss, train_loss = losses["val"], losses["train"]
-                if iter_num > 0:
-                    save_checkpoint(
-                        args,
-                        raw_model,
-                        optimizer,
-                        iter_num,
-                        best_val_loss,
-                        train_loss,
-                        running_mfu,
-                    )
-
-                    # Manage old checkpoints asynchronously
-                    thread = threading.Thread(
-                        target=manage_checkpoints, args=(args,)
-                    )
-                    thread.start()
-
-                    if iter_num == 0 and args.eval_only:
-                        break
+            if iter_num == 0 and args.eval_only:
+                break
 
         # forward backward update, with optional gradient accumulation to simulate larger batch size
         # and using the GradScaler if data type is float16
@@ -197,7 +240,7 @@ def train_model(
 
             # In the training loop, log metrics to TensorBoard
             tb_writer.add_scalar("Training Loss", lossf, iter_num)
-            tb_writer.add_scalar("Learning Rate", args.learning_rate, iter_num)
+            tb_writer.add_scalar("Learning Rate", args.lr, iter_num)
 
             logger.info(
                 f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, 100*mfu {running_mfu*100*100:.2f}%"

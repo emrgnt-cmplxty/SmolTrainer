@@ -40,9 +40,13 @@ poetry run python baby_moe/runner.py --device=cpu --compile=False --eval-iters=2
 poetry run tensorboard --logdir=results
 ```
 
+### Comments
+
+* For additional monitoring, pass --wandb-log.
+
 ## Evaluate
 
 ```bash
 # Run simple inference your model
-poetry run python baby_moe/inference.py
+poetry run python baby_moe/inference.py --model_prefix=run_0_checkpoint__mode_moe__n_layer_12__n_head_4__n_embd_128__n_experts_8__top_k_experts_8
 ```
