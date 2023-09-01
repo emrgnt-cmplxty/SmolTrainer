@@ -5,6 +5,7 @@ from baby_moe.trainer.initializer import (
     initialize_model_from_checkpoint,
     initialize_model_from_gpt2,
     initialize_model_from_scratch,
+    initialize_optimizer,
 )
 
 __all__ = [
@@ -14,5 +15,6 @@ __all__ = [
     "initialize_model_from_scratch",
     "initialize_model_from_checkpoint",
     "initialize_model_from_gpt2",
+    "initialize_optimizer",
     "crop_and_move_model",
 ]
