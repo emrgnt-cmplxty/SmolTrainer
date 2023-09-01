@@ -28,10 +28,14 @@ import torch
 from torch.distributed import destroy_process_group, init_process_group
 from torch.nn import Module
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.tensorboard import SummaryWriter
 
+import wandb
+from baby_moe.config import LearningConfig, TrainConfig
 from baby_moe.trainer import (
     crop_and_move_model,
     get_checkpoint_prefix,
+    get_project_identifier,
     initialize_model_from_checkpoint,
     initialize_model_from_gpt2,
     initialize_model_from_scratch,
@@ -100,7 +104,7 @@ def setup_run_args(logger: logging.Logger, args: argparse.Namespace) -> None:
     args.iter_num = 0
     args.best_val_loss = 1e9
 
-    prefix = get_checkpoint_prefix(args)
+    prefix = get_checkpoint_prefix(vars(args))
     args.tensorboard_path = os.path.join(
         args.out_dir, f"{prefix}__tensorboard"
     )
@@ -152,6 +156,20 @@ def setup_training_environment(args: argparse.Namespace) -> Any:
     return setup_amp_context(args)
 
 
+def initialize_run_performance_logging(
+    args: argparse.Namespace,
+) -> SummaryWriter:
+    """Initialize logging with WandB and TensorBoard."""
+    if args.wandb_log and args.master_process:
+        config_dict = vars(args)
+        wandb.init(
+            project=get_project_identifier(config_dict),
+            name=args.run_name,
+            config=config_dict,
+        )
+    return SummaryWriter(log_dir=args.tensorboard_path)
+
+
 if __name__ == "__main__":
     args = parse_args()
     config = vars(args)
@@ -159,7 +177,7 @@ if __name__ == "__main__":
     logger = get_configured_logger(__name__, args.log_level)
     logger.info(f"Running with passed in args:\n{args}")
 
-    ctx = setup_training_environment(args)
+    amp_context = setup_training_environment(args)
 
     # Setting model arguments  init
     args.model_args = dict(
@@ -173,7 +191,7 @@ if __name__ == "__main__":
     )  # start with model_args from command line
 
     logger.info(f"Running over dataset = {args.dataset}")
-    train_data, val_data, meta_vocab_size = load_data(logger, args)
+    train_data, val_data, meta_vocab_size = load_data(logger, args.dataset)
 
     checkpoint = None
     if args.init_from == "scratch":
@@ -205,17 +223,69 @@ if __name__ == "__main__":
 
     raw_model = (
         model.module if args.ddp else model
-    )  # 1unwrap DDP container if needed
+    )  # unwrap DDP container if needed
+    logger.info(f"Running with the following model:\m{model}")
 
-    iter_num, best_val_loss = train_model(
-        logger,
-        args,
+    lr_config = LearningConfig(
+        # Learning rate settings
+        lr=args.initial_lr,
+        initial_lr=args.initial_lr,
+        decay_lr=args.decay_lr,
+        min_lr=args.min_lr,
+        # Optimizer settings
+        grad_clip=args.grad_clip,
+        weight_decay=args.weight_decay,
+        beta1=args.beta1,
+        beta2=args.beta2,
+        # Iteration variables
+        lr_decay_iters=args.lr_decay_iters,
+        warmup_iters=args.warmup_iters,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+    )
+
+    # Initialize the training config
+    train_config = TrainConfig(
+        # Logging support
+        tb_writer=initialize_run_performance_logging(args),
+        logger=logger,
+        lr_config=lr_config,
+        master_process=args.master_process,
+        log_interval=args.log_interval,
+        wandb_log=args.wandb_log,
+        # Architecture
+        bias=args.bias,
+        mode=args.mode,
+        dropout=args.dropout,
+        n_head=args.n_head,
+        n_layer=args.n_layer,
+        n_experts=args.n_experts,
+        n_embd=args.n_embd,
+        top_k_experts=args.top_k_experts,
+        # Training params
+        eval_interval=args.eval_interval,
+        batch_size=args.batch_size,
+        block_size=args.block_size,
+        max_iters=args.max_iters,
+        eval_iters=args.eval_iters,
+        max_checkpoints=args.max_checkpoints,
+        # Run information
+        out_dir=args.out_dir,
+        checkpoint_dir=args.checkpoint_dir,
+        run_name=args.run_name,
+        ddp=args.ddp,
+        device=args.device,
+        device_type=args.device_type,
+        iter_num=checkpoint["iter_num"] if checkpoint else 0,
+    )
+
+    train_model(
         model,
         optimizer,
         scaler,
         train_data,
         val_data,
-        ctx,
+        train_config,
+        amp_context,
         raw_model,
     )
 

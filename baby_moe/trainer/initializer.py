@@ -46,6 +46,7 @@ def initialize_model_from_scratch(
     )
     logger.info(f"Model is initializing with args:\n{args.model_args}")
     gptconf = GPTConfig(**args.model_args)
+    logger.info("Running in architecture mode = {args.mode}")
     return (
         GPT(gptconf)
         if args.mode == "gpt"
