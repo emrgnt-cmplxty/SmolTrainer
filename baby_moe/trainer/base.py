@@ -2,11 +2,11 @@
 import argparse
 import logging
 import math
-import os
+import threading
 import time
 
 # from contextlib import AbstractContextManager
-from typing import Any, Optional, Tuple
+from typing import Any, Tuple
 
 import numpy as np
 import torch
@@ -14,6 +14,7 @@ from torch.cuda.amp import GradScaler
 from torch.nn import Module
 from torch.optim import Optimizer
 
+from baby_moe.trainer.checkpointer import manage_checkpoints, save_checkpoint
 from baby_moe.trainer.data_loader import get_batch
 
 
@@ -73,7 +74,7 @@ def train_model(
     # TODO - Track down the types for these
     # Why does ctx: AbstractContextManager fail?
     ctx: Any,
-    raw_model: Optional[Module] = None,
+    raw_model: Module,
 ) -> Tuple[int, float]:
     """Train the model."""
     # TODO - Break this function up into smaller functions
@@ -120,20 +121,23 @@ def train_model(
             if losses["val"] < best_val_loss or args.always_save_checkpoint:
                 best_val_loss = losses["val"]
                 if iter_num > 0:
-                    checkpoint = {
-                        "model": raw_model.state_dict(),
-                        "optimizer": optimizer.state_dict(),
-                        "model_args": args.model_args,
-                        "iter_num": iter_num,
-                        "best_val_loss": best_val_loss,
-                        "config": vars(args),
-                    }
-                    logger.info(f"saving checkpoint to {args.out_dir}")
-                    torch.save(
-                        checkpoint, os.path.join(args.out_dir, "ckpt.pt")
+                    save_checkpoint(
+                        args,
+                        raw_model,
+                        optimizer,
+                        iter_num,
+                        running_mfu,
+                        best_val_loss,
                     )
-        if iter_num == 0 and args.eval_only:
-            break
+
+                    # Manage old checkpoints asynchronously
+                    thread = threading.Thread(
+                        target=manage_checkpoints, args=(args,)
+                    )
+                    thread.start()
+
+                    if iter_num == 0 and args.eval_only:
+                        break
 
         # forward backward update, with optional gradient accumulation to simulate larger batch size
         # and using the GradScaler if data type is float16
@@ -174,8 +178,6 @@ def train_model(
             # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
             lossf = loss.item() * args.gradient_accumulation_steps
             if local_iter_num >= 5:  # let the training loop settle a bit
-                if not raw_model:
-                    raise ValueError("raw_model is None")
                 mfu = raw_model.estimate_mfu(
                     args.batch_size * args.gradient_accumulation_steps, dt
                 )

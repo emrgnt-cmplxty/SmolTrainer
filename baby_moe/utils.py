@@ -195,6 +195,13 @@ def parse_args():
     parser.add_argument(
         "--min-lr", default=6e-5, type=float, help="Minimum learning rate"
     )
+    parser.add_argument(
+        "--max-checkpoints",
+        default=5,
+        type=int,
+        help="Maximum checkpoints to hold.",
+    )
+
     # DDP settings
     parser.add_argument(
         "--backend",

@@ -11,11 +11,26 @@ from baby_moe.model import MoEGPT
 from baby_moe.nano_gpt.model import GPT, GPTConfig
 
 
+def initialize_optimizer(
+    args: argparse.Namespace, model: Module, checkpoint: Any = None
+):
+    """Initialize optimizer and load its state if resuming from a checkpoint."""
+    optimizer = model.configure_optimizers(
+        args.weight_decay,
+        args.learning_rate,
+        (args.beta1, args.beta2),
+        args.device_type,
+    )
+    if checkpoint and args.init_from == "resume":
+        optimizer.load_state_dict(checkpoint["optimizer"])
+    return optimizer
+
+
 def initialize_model_from_scratch(
     args: argparse.Namespace,
     meta_vocab_size: Optional[int],
     logger: logging.Logger,
-):
+) -> Module:
     """Initialize a new model from scratch."""
     logger.info("Initializing a new model from scratch")
 
@@ -37,7 +52,7 @@ def initialize_model_from_scratch(
 
 def initialize_model_from_checkpoint(
     args: argparse.Namespace, logger: logging.Logger
-) -> Tuple[GPT, Any]:  # TODO - Find a correct type for the checkpoint.
+) -> Tuple[Module, Any]:  # TODO - Find a correct type for the checkpoint.
     """Resume training from a checkpoint."""
     logger.info(f"Resuming training from {args.out_dir}")
 
@@ -65,6 +80,10 @@ def initialize_model_from_checkpoint(
             state_dict[k[len(unwanted_prefix) :]] = state_dict.pop(k)
     model.load_state_dict(state_dict)
 
+    # Update args to reflect latest numbers from checkpoint
+    args.iter_num = checkpoint["iter_num"]
+    args.best_val_loss = checkpoint["best_val_loss"]
+
     return model, checkpoint
 
 
@@ -90,7 +109,7 @@ def initialize_model_from_gpt2(
     return model
 
 
-def crop_and_move_model(args: argparse.Namespace, model: GPT) -> Module:
+def crop_and_move_model(args: argparse.Namespace, model: Module) -> Module:
     """Handle model cropping and device transfer."""
     if args.block_size < model.config.block_size:
         model.crop_block_size(args.block_size)

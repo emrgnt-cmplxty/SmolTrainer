@@ -23,18 +23,20 @@ import sys
 
 # from contextlib import AbstractContextManager
 from contextlib import nullcontext
+from typing import Any, Union
 
 import torch
 from torch.distributed import destroy_process_group, init_process_group
+from torch.nn import Module
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 sys.path.append("/Users/ocolegrove/babyMoE/baby_moe/nano_gpt")
-
 from baby_moe.trainer import (
     crop_and_move_model,
     initialize_model_from_checkpoint,
     initialize_model_from_gpt2,
     initialize_model_from_scratch,
+    initialize_optimizer,
     load_data,
     train_model,
 )
@@ -44,17 +46,19 @@ from baby_moe.utils import get_configured_logger, parse_args
 def load_config_and_overwrite_args(
     logger: logging.Logger, args: argparse.Namespace
 ) -> None:
-    local_vars_before = locals().copy()
-    config_load = open(args.config_file).read()
-    logger.info(f"Reading config from {args.config_file}:\n{config_load}")
+    """Load config from file and overwrite args."""
+    if args.config_file:
+        local_vars_before = locals().copy()
+        config_load = open(args.config_file).read()
+        logger.info(f"Reading config from {args.config_file}:\n{config_load}")
 
-    local_namespace: dict = {}
-    exec(config_load, globals(), local_namespace)
+        local_namespace: dict = {}
+        exec(config_load, globals(), local_namespace)
 
-    new_vars = set(local_namespace.keys()) - set(local_vars_before.keys())
+        new_vars = set(local_namespace.keys()) - set(local_vars_before.keys())
 
-    for var in new_vars:
-        setattr(args, var, local_namespace[var])
+        for var in new_vars:
+            setattr(args, var, local_namespace[var])
 
 
 def setup_run_args(logger: logging.Logger, args: argparse.Namespace) -> None:
@@ -89,7 +93,48 @@ def setup_run_args(logger: logging.Logger, args: argparse.Namespace) -> None:
         * args.batch_size
         * args.block_size
     )
+    args.device_type = (
+        "cuda" if "cuda" in args.device else "cpu"
+    )  # for later use in torch.autocast
+
+    # Initialize here so we can override if init_from='resume' (i.e. from a checkpoint)
+    args.iter_num = 0
+    args.best_val_loss = 1e9
+
     logger.info(f"tokens per iteration will be: {args.tokens_per_iter:,}")
+
+
+def setup_amp_context(args: argparse.Namespace) -> Any:
+    """Sets up the autocast context."""
+    ptdtype = {
+        "float32": torch.float32,
+        "bfloat16": torch.bfloat16,
+        "float16": torch.float16,
+    }[args.dtype]
+    return (
+        nullcontext()
+        if args.device_type == "cpu"
+        else torch.amp.autocast(device_type=args.device_type, dtype=ptdtype)
+    )
+
+
+def setup_ddp(args: argparse.Namespace, model: Module) -> Union[Module, Any]:
+    # TODO - What is the appropriate type for DDP?
+    """Sets up the DDP model."""
+    if args.ddp:
+        model = DDP(model, device_ids=[args.ddp_local_rank])
+    return model
+
+
+def setup_training_environment(args: argparse.Namespace) -> Any:
+    """Setup the training environment"""
+
+    load_config_and_overwrite_args(logger, args)
+    setup_run_args(logger, args)
+    torch.manual_seed(1337 + args.seed_offset)
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+    return setup_amp_context(args)
 
 
 if __name__ == "__main__":
@@ -97,42 +142,11 @@ if __name__ == "__main__":
     config = vars(args)
 
     logger = get_configured_logger(__name__, args.log_level)
-
     logger.info(f"Running with passed in args:\n{args}")
 
-    if args.config_file:
-        load_config_and_overwrite_args(logger, args)
+    ctx = setup_training_environment(args)
 
-    setup_run_args(logger, args)
-
-    if args.master_process:
-        os.makedirs(args.out_dir, exist_ok=True)
-    torch.manual_seed(1337 + args.seed_offset)
-    torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
-    torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
-    args.device_type = (
-        "cuda" if "cuda" in args.device else "cpu"
-    )  # for later use in torch.autocast
-    # note: float16 data type will automatically use a GradScaler
-    ptdtype = {
-        "float32": torch.float32,
-        "bfloat16": torch.bfloat16,
-        "float16": torch.float16,
-    }[args.dtype]
-    ctx = (
-        nullcontext()
-        if args.device_type == "cpu"
-        else torch.amp.autocast(device_type=args.device_type, dtype=ptdtype)
-    )
-
-    logger.info(f"Running over dataset = {args.dataset}")
-    train_data, val_data, meta_vocab_size = load_data(logger, args)
-
-    # init these up here, can override if init_from='resume' (i.e. from a checkpoint)
-    iter_num = 0
-    best_val_loss = 1e9
-
-    # # model init
+    # Setting model arguments  init
     args.model_args = dict(
         n_layer=args.n_layer,
         n_head=args.n_head,
@@ -143,9 +157,14 @@ if __name__ == "__main__":
         dropout=args.dropout,
     )  # start with model_args from command line
 
+    logger.info(f"Running over dataset = {args.dataset}")
+    train_data, val_data, meta_vocab_size = load_data(logger, args)
+
     checkpoint = None
     if args.init_from == "scratch":
-        model = initialize_model_from_scratch(args, meta_vocab_size, logger)
+        model: Module = initialize_model_from_scratch(
+            args, meta_vocab_size, logger
+        )
     elif args.init_from == "resume":
         model, checkpoint = initialize_model_from_checkpoint(args, logger)
     elif args.init_from.startswith("gpt2"):
@@ -153,34 +172,25 @@ if __name__ == "__main__":
 
     model = crop_and_move_model(args, model)
 
+    optimizer = initialize_optimizer(args, model, checkpoint)
+
     # Initialize a GradScaler. If enabled=False scaler is a no-op
     scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype == "float16"))
 
-    # Configure the model optimizer
-    optimizer = model.configure_optimizers(
-        args.weight_decay,
-        args.learning_rate,
-        (args.beta1, args.beta2),
-        args.device_type,
-    )
-
-    if checkpoint:
-        optimizer.load_state_dict(checkpoint["optimizer"])
-        checkpoint = None  # free up memory
-
-    # compile the model
+    # Compile the model
     if args.compile:
         logger.info("Compiling the model... (takes a ~minute)")
-        unoptimized_model = model
         model = torch.compile(model)  # requires PyTorch 2.0
 
-    # wrap model into DDP container
-    if args.ddp:
-        model = DDP(model, device_ids=[args.ddp_local_rank])
+    # Wrap the model into DDP container
+    model = setup_ddp(args, model)
+
+    if args.master_process:
+        os.makedirs(args.out_dir, exist_ok=True)
 
     raw_model = (
         model.module if args.ddp else model
-    )  # unwrap DDP container if needed
+    )  # 1unwrap DDP container if needed
 
     iter_num, best_val_loss = train_model(
         logger,
