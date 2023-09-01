@@ -1,4 +1,5 @@
 """A module for checkpointing and saving models during training."""
+
 import argparse
 import datetime
 import glob
@@ -7,21 +8,24 @@ import os
 import torch
 from torch.nn import Module
 from torch.optim import Optimizer
+from torch.utils.tensorboard import SummaryWriter
 
 from baby_moe.utils import get_configured_logger
 
 
-def _get_checkpoint_name(args: argparse.Namespace, iter_num: str) -> str:
+def _get_checkpoint_prefix(args: argparse.Namespace) -> str:
     """Returns the name of the checkpoint file"""
-    return f"checkpoint__n_layer_{args.n_layer}__n_head_{args.n_head}__n_embd_{args.n_embd}__n_experts_{args.n_experts}__top_k_experts_{args.top_k_experts}__iter_{iter_num}.pt"
+    return f"checkpoint__n_layer_{args.n_layer}__n_head_{args.n_head}__n_embd_{args.n_embd}__n_experts_{args.n_experts}__top_k_experts_{args.top_k_experts}"
 
 
 def manage_checkpoints(args: argparse.Namespace) -> None:
     """Manage the checkpoints: save, delete old ones"""
     # List all checkpoints
-    file_name = _get_checkpoint_name(args, "*")
-    print("file_name = ", file_name)
-    checkpoints = sorted(glob.glob(os.path.join(args.out_dir, file_name)))
+    prefix = _get_checkpoint_prefix(args)
+    file_name = f"{prefix}__iter_*.pt"
+    checkpoints = sorted(
+        glob.glob(os.path.join(args.out_dir, prefix, file_name))
+    )
 
     # Remove older checkpoints
     for ckpt in checkpoints[: -args.max_checkpoints]:
@@ -34,6 +38,7 @@ def save_checkpoint(
     optimizer: Optimizer,
     iter_num: int,
     best_val_loss: float,
+    train_loss: float,
     running_mfu: float,
 ) -> None:
     """Saves the checkpoint to the designated output location"""
@@ -54,6 +59,7 @@ def save_checkpoint(
         # Training state & hyperparameters
         "iter_num": iter_num,
         "best_val_loss": best_val_loss,
+        "train_loss": train_loss,
         "running_mfu": running_mfu,
         "learning_rate": args.learning_rate,
         "weight_decay": args.weight_decay,
@@ -66,12 +72,31 @@ def save_checkpoint(
         "pytorch_version": torch.__version__,
     }
 
-    checkpoint_path = os.path.join(
-        args.out_dir, _get_checkpoint_name(args, str(iter_num))
+    prefix = _get_checkpoint_prefix(args)
+
+    # Save the checkpoint
+    checkpoint_dir = os.path.join(
+        args.out_dir,
+        prefix,
     )
-    temp_checkpoint_path = f"{checkpoint_path}.temp"
+    os.makedirs(checkpoint_dir, exist_ok=True)
+
+    temp_checkpoint_path = os.path.join(
+        checkpoint_dir, f"{prefix}__iter_num_{iter_num}.temp"
+    )
+    checkpoint_path = temp_checkpoint_path.replace(".temp", ".pt")
 
     # Save to a temporary file to avoid data corruption
     torch.save(checkpoint, temp_checkpoint_path)
     os.rename(temp_checkpoint_path, checkpoint_path)
     logger.info(f"Saved checkpoint to {checkpoint_path}")
+
+    tensorboard_path = os.path.join(args.out_dir, f"{prefix}__tensorboard")
+
+    # Initialize the TensorBoard writer
+    tb_writer = SummaryWriter(log_dir=tensorboard_path)
+
+    # In the training loop, log metrics to TensorBoard
+    tb_writer.add_scalar("Training Loss", train_loss, iter_num)
+    tb_writer.add_scalar("Validation Loss", best_val_loss, iter_num)
+    tb_writer.add_scalar("Learning Rate", args.learning_rate, iter_num)

@@ -1,4 +1,5 @@
 """Base training loop for Baby MoE."""
+
 import argparse
 import logging
 import math
@@ -119,15 +120,16 @@ def train_model(
                     }
                 )
             if losses["val"] < best_val_loss or args.always_save_checkpoint:
-                best_val_loss = losses["val"]
+                best_val_loss, train_loss = losses["val"], losses["train"]
                 if iter_num > 0:
                     save_checkpoint(
                         args,
                         raw_model,
                         optimizer,
                         iter_num,
-                        running_mfu,
                         best_val_loss,
+                        train_loss,
+                        running_mfu,
                     )
 
                     # Manage old checkpoints asynchronously

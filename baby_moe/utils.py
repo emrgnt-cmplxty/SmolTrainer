@@ -1,3 +1,4 @@
+"""Utilities for the baby_moe package."""
 import argparse
 import logging
 import os
@@ -37,7 +38,7 @@ def parse_args():
         "--config-file", default="", type=str, help="Configuration file"
     )
     parser.add_argument(
-        "--out-dir", default="out", type=str, help="Output directory"
+        "--out-dir", default="results", type=str, help="Output directory"
     )
     parser.add_argument(
         "--eval-interval", default=2000, type=int, help="Evaluation interval"
