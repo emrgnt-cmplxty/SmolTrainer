@@ -1,4 +1,8 @@
-# BabyMoE Framework
+# BabyMoE: Mixture of Experts over GPT
+
+Welcome to BabyMoE, an evolution of the popular nanoGPT repository, tailored to train a mixture of experts over the GPT architecture. BabyMoE takes the simplicity and efficiency of nanoGPT and amplifies it with the power of expert-based learning, enabling models to specialize and generalize more effectively.
+
+---
 
 ## Install and Setup
 
