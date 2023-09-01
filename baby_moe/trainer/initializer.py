@@ -1,4 +1,5 @@
 """Contains the logic for initializing a model."""
+
 import argparse
 import logging
 import os
