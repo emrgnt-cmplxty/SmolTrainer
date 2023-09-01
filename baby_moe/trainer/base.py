@@ -3,7 +3,6 @@
 import argparse
 import logging
 import math
-import os
 import threading
 import time
 
@@ -17,11 +16,7 @@ from torch.nn import Module
 from torch.optim import Optimizer
 from torch.utils.tensorboard import SummaryWriter
 
-from baby_moe.trainer.checkpointer import (
-    get_checkpoint_prefix,
-    manage_checkpoints,
-    save_checkpoint,
-)
+from baby_moe.trainer.checkpointer import manage_checkpoints, save_checkpoint
 from baby_moe.trainer.data_loader import get_batch
 
 
@@ -103,12 +98,8 @@ def train_model(
     iter_num = 0
     best_val_loss = 1e9
 
-    tensorboard_path = os.path.join(
-        args.out_dir, f"{get_checkpoint_prefix(args)}__tensorboard"
-    )
-
     # Initialize the TensorBoard writer
-    tb_writer = SummaryWriter(log_dir=tensorboard_path)
+    tb_writer = SummaryWriter(log_dir=args.tensorboard_path)
 
     while True:
         # determine and set the learning rate for this iteration
