@@ -16,7 +16,7 @@ class ExpertTransformerLayer(nn.Module):
         # Initialize a transformer block using the provided configuration
         self.block = Block(config)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Compute the forward pass through the transformer block."""
         return self.block(x)
 
@@ -35,7 +35,7 @@ class GatingMechanism(nn.Module):
         # If provided, only the top-k experts will be considered for gating
         self.top_k = top_k
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Compute the gating weights for each expert."""
 
         # Get logits for each expert
@@ -66,7 +66,7 @@ class MixtureOfExpertsBlock(nn.Module):
         # Gating mechanism to determine the contribution of each expert
         self.gate = GatingMechanism(num_experts, config.n_embd, top_k)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Calculate a weighted output based on expert responses."""
 
         # Determine weights for each expert
