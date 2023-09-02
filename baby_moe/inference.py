@@ -31,6 +31,7 @@ dtype = (
 compile = False  # use PyTorch 2.0 to compile the model to be faster
 model_prefix = "checkpoint__mode_moe__n_layer_4__n_head_4__n_embd_128__n_experts_128__top_k_experts_16"
 iter_num = "2000"
+meta_path = "x"
 exec(
     open("baby_moe/nano_gpt/configurator.py").read()
 )  # overrides from command line or config file
@@ -61,7 +62,15 @@ if init_from == "resume":
         out_dir, model_prefix, f"{model_prefix}__iter_num_{iter_num}.pt"
     )
     checkpoint = torch.load(ckpt_path, map_location=device)
-    gptconf = GPTConfig(**checkpoint["model_args"])
+    gptconf = GPTConfig(
+        block_size=checkpoint["block_size"],
+        vocab_size=65,
+        n_layer=checkpoint["n_layer"],
+        n_head=checkpoint["n_head"],
+        n_embd=checkpoint["n_embd"],
+        dropout=checkpoint["dropout"],
+        bias=checkpoint["bias"],
+    )
     model = (
         GPT(gptconf)
         if checkpoint["mode"] == "gpt"
@@ -85,20 +94,21 @@ if compile:
     model = torch.compile(model)  # requires PyTorch 2.0 (optional)
 
 # look for the meta pickle in case it is available in the dataset folder
-load_meta = False
-if (
-    init_from == "resume"
-    and "config" in checkpoint
-    and "dataset" in checkpoint["config"]
-):  # older checkpoints might not have these...
-    meta_path = os.path.join(
-        "baby_moe",
-        "nano_gpt",
-        "data",
-        checkpoint["config"]["dataset"],
-        "meta.pkl",
-    )
-    load_meta = os.path.exists(meta_path)
+print("checkpoint = ", checkpoint.keys())
+load_meta = True
+# if (
+#     init_from == "resume"
+#     # and "config" in checkpoint
+#     and "dataset" in checkpoint  # ["config"]
+# ):  # older checkpoints might not have these...
+#     meta_path = os.path.join(
+#         "baby_moe",
+#         "nano_gpt",
+#         "data",
+#         checkpoint["config"]["dataset"],
+#         "meta.pkl",
+#     )
+#     load_meta = os.path.exists(meta_path)
 if load_meta:
     print(f"Loading meta from {meta_path}...")
     with open(meta_path, "rb") as f:
