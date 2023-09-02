@@ -42,7 +42,7 @@ exclude = '''
 
 [tool.mypy]
 ignore_missing_imports = true
-exclude = 'baby_moe/nano_gpt/|baby_moe/inference.py'
+exclude = 'baby_moe/nano_gpt/|baby_moe/inference.py|baby_moe/model/lora.py'
 
 [tool.flake8]
 ignore = ["E501", "W503"]

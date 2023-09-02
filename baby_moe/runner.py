@@ -275,6 +275,7 @@ if __name__ == "__main__":
         ddp=args.ddp,
         device=args.device,
         device_type=args.device_type,
+        always_save_checkpoint=args.always_save_checkpoint,
         iter_num=checkpoint["iter_num"] if checkpoint else 0,
     )
 

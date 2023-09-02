@@ -16,7 +16,7 @@ def get_project_identifier(output_config: dict) -> str:
     if mode == "gpt":
         return f"mode_gpt__{common_prefix}"
     else:
-        return f"mode_gpt__{common_prefix}__n_experts_{output_config['n_experts']}__top_k_experts_{output_config['top_k_experts']}"
+        return f"mode_moe__{common_prefix}__n_experts_{output_config['n_experts']}__top_k_experts_{output_config['top_k_experts']}"
 
 
 def get_checkpoint_prefix(output_config: dict) -> str:
