@@ -18,6 +18,7 @@ requests = "^2.31.0"
 tiktoken = "^0.4.0"
 wandb = "^0.15.9"
 python-dotenv = "^1.0.0"
+datasets = "^2.14.5"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "6.1.0"
