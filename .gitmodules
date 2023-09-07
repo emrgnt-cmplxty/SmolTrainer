@@ -1,3 +1,3 @@
-[submodule "baby_moe/nano_gpt"]
-	path = baby_moe/nano_gpt
+[submodule "smol_trainer/nano_gpt"]
+	path = smol_trainer/nano_gpt
 	url = https://github.com/karpathy/nanoGPT

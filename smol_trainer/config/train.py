@@ -1,8 +1,16 @@
+from enum import Enum
 import logging
 import time
 from dataclasses import dataclass
 
 from torch.utils.tensorboard import SummaryWriter
+
+
+class Mode(Enum):
+    MOE = "moe"
+    GPT = "gpt"
+    LLAMA = "llama"
+    LORA = "lora"
 
 
 @dataclass
@@ -41,7 +49,7 @@ class TrainConfig:
 
     # Arhitecture
     bias: bool
-    mode: bool
+    mode: Mode
     dropout: float
     n_head: int
     n_layer: int

@@ -1,10 +1,10 @@
-from baby_moe.trainer.base import train_model
-from baby_moe.trainer.checkpointer import (
+from smol_trainer.trainer.base import train_model
+from smol_trainer.trainer.checkpointer import (
     get_checkpoint_prefix,
     get_project_identifier,
 )
-from baby_moe.trainer.data_loader import get_batch, load_data
-from baby_moe.trainer.initializer import (
+from smol_trainer.trainer.data_loader import get_batch, load_data
+from smol_trainer.trainer.initializer import (
     crop_and_move_model,
     initialize_model_from_checkpoint,
     initialize_model_from_gpt2,

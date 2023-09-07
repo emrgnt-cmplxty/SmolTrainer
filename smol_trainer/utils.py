@@ -1,4 +1,4 @@
-"""Utilities for the baby_moe package."""
+"""Utilities for the smol_trainer package."""
 import argparse
 import logging
 import os
@@ -12,7 +12,7 @@ def get_root_py_fpath() -> str:
 
 
 def get_root_fpath() -> str:
-    """Get the path to the root of the baby_moe directory."""
+    """Get the path to the root of the smol_trainer directory."""
 
     return os.path.join(get_root_py_fpath(), "..")
 

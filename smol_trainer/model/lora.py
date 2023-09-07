@@ -51,7 +51,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import baby_moe.nano_gpt.model as GPT
+import smol_trainer.nano_gpt.model as GPT
 
 
 class LoRALayer:

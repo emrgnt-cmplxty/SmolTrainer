@@ -5,7 +5,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from nano_gpt.model import GPT, Block
+from smol_trainer.nano_gpt.model import GPT, Block
 
 
 class ExpertTransformerLayer(nn.Module):

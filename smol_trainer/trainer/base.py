@@ -1,4 +1,4 @@
-"""Base training loop for Baby MoE."""
+"""Base training loop for SmolTrainer."""
 
 import math
 import threading
@@ -14,10 +14,13 @@ from torch.nn import Module
 from torch.optim import Optimizer
 
 import wandb
-from baby_moe.config.train import LearningConfig, TrainConfig
-from baby_moe.trainer.checkpointer import manage_checkpoints, save_checkpoint
-from baby_moe.trainer.data_loader import get_batch
-from baby_moe.utils import custom_asdict
+from smol_trainer.config.train import LearningConfig, TrainConfig
+from smol_trainer.trainer.checkpointer import (
+    manage_checkpoints,
+    save_checkpoint,
+)
+from smol_trainer.trainer.data_loader import get_batch
+from smol_trainer.utils import custom_asdict
 
 # ========================== Learning Rate Logic ==========================
 

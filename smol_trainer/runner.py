@@ -31,8 +31,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 
 import wandb
-from baby_moe.config import LearningConfig, TrainConfig
-from baby_moe.trainer import (
+from smol_trainer.config import Mode, LearningConfig, TrainConfig
+from smol_trainer.trainer import (
     crop_and_move_model,
     get_checkpoint_prefix,
     get_project_identifier,
@@ -43,7 +43,7 @@ from baby_moe.trainer import (
     load_data,
     train_model,
 )
-from baby_moe.utils import get_configured_logger, parse_args
+from smol_trainer.utils import get_configured_logger, parse_args
 
 
 def load_config_and_overwrite_args(
@@ -208,8 +208,14 @@ if __name__ == "__main__":
     optimizer = initialize_optimizer(args, model, checkpoint)
 
     # Initialize a GradScaler. If enabled=False scaler is a no-op
-    scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype == "float16"))
-
+    # We must comment out this code which appears in nanoGPT
+    # This is to avoid explosions of gradients when using Torch 2.0.x
+    # The authors in nanoGPT claim this is a fault of Torch
+    # TODO - Investigate this further
+    # scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype == "float16"))
+    scaler = torch.cuda.amp.GradScaler(
+        enabled=(args.dtype == "float16"), growth_interval=0
+    )
     # Compile the model
     if args.compile:
         logger.info("Compiling the model... (takes a ~minute)")
@@ -254,7 +260,7 @@ if __name__ == "__main__":
         wandb_log=args.wandb_log,
         # Architecture
         bias=args.bias,
-        mode=args.mode,
+        mode=Mode(args.mode),
         dropout=args.dropout,
         n_head=args.n_head,
         n_layer=args.n_layer,

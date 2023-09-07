@@ -8,8 +8,8 @@ from contextlib import nullcontext
 import tiktoken
 import torch
 
-from baby_moe.model.moe import MoEGPT
-from baby_moe.nano_gpt.model import GPT, GPTConfig
+from smol_trainer.model.moe import MoEGPT
+from smol_trainer.nano_gpt.model import GPT, GPTConfig
 
 # -----------------------------------------------------------------------------
 init_from = "resume"  # either 'resume' (from an out_dir) or a gpt2 variant (e.g. 'gpt2-xl')
@@ -33,7 +33,7 @@ model_prefix = "checkpoint__mode_moe__n_layer_4__n_head_4__n_embd_128__n_experts
 iter_num = "2000"
 meta_path = "x"
 exec(
-    open("baby_moe/nano_gpt/configurator.py").read()
+    open("smol_trainer/nano_gpt/configurator.py").read()
 )  # overrides from command line or config file
 # -----------------------------------------------------------------------------
 
@@ -102,7 +102,7 @@ load_meta = True
 #     and "dataset" in checkpoint  # ["config"]
 # ):  # older checkpoints might not have these...
 #     meta_path = os.path.join(
-#         "baby_moe",
+#         "smol_trainer",
 #         "nano_gpt",
 #         "data",
 #         checkpoint["config"]["dataset"],
