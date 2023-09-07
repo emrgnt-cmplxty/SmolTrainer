@@ -64,7 +64,6 @@ if init_from == "resume":
     checkpoint = torch.load(ckpt_path, map_location=device)
     gptconf = GPTConfig(
         block_size=checkpoint["block_size"],
-        vocab_size=65,
         n_layer=checkpoint["n_layer"],
         n_head=checkpoint["n_head"],
         n_embd=checkpoint["n_embd"],
@@ -73,7 +72,7 @@ if init_from == "resume":
     )
     model = (
         GPT(gptconf)
-        if checkpoint["mode"] == "gpt"
+        if checkpoint["mode"].value == "gpt"
         else MoEGPT(
             gptconf, checkpoint["n_experts"], checkpoint["top_k_experts"]
         )
@@ -95,34 +94,11 @@ if compile:
 
 # look for the meta pickle in case it is available in the dataset folder
 print("checkpoint = ", checkpoint.keys())
-load_meta = True
-# if (
-#     init_from == "resume"
-#     # and "config" in checkpoint
-#     and "dataset" in checkpoint  # ["config"]
-# ):  # older checkpoints might not have these...
-#     meta_path = os.path.join(
-#         "smol_trainer",
-#         "nano_gpt",
-#         "data",
-#         checkpoint["config"]["dataset"],
-#         "meta.pkl",
-#     )
-#     load_meta = os.path.exists(meta_path)
-if load_meta:
-    print(f"Loading meta from {meta_path}...")
-    with open(meta_path, "rb") as f:
-        meta = pickle.load(f)
-    # TODO want to make this more general to arbitrary encoder/decoder schemes
-    stoi, itos = meta["stoi"], meta["itos"]
-    encode = lambda s: [stoi[c] for c in s]
-    decode = lambda l: "".join([itos[i] for i in l])
-else:
-    # ok let's assume gpt-2 encodings by default
-    print("No meta.pkl found, assuming GPT-2 encodings...")
-    enc = tiktoken.get_encoding("gpt2")
-    encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
-    decode = lambda l: enc.decode(l)
+# ok let's assume gpt-2 encodings by default
+print("No meta.pkl found, assuming GPT-2 encodings...")
+enc = tiktoken.get_encoding("gpt2")
+encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
+decode = lambda l: enc.decode(l)
 
 # encode the beginning of the prompt
 if start.startswith("FILE:"):
