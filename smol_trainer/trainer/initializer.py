@@ -13,9 +13,7 @@ from smol_trainer.model import MoEGPT
 from smol_trainer.nano_gpt.model import GPT, GPTConfig
 
 
-def configure_optimizers(
-    model: Module, weight_decay, learning_rate, betas, device_type
-):
+def configure_optimizers(model: Module, weight_decay, learning_rate, betas):
     # start with all of the candidate parameters
     param_dict = {pn: p for pn, p in model.named_parameters()}
     # filter out those that do not require grad
@@ -56,7 +54,6 @@ def configure_optimizers(
         fused=False,
         lr=learning_rate,
         betas=betas,
-        device_type=device_type,
     )
 
 
@@ -66,10 +63,10 @@ def initialize_optimizer(
     """Initialize optimizer and load its state if resuming from a checkpoint."""
 
     optimizer = configure_optimizers(
+        model,
         args.weight_decay,
         args.initial_lr,
         (args.beta1, args.beta2),
-        args.device_type,
     )
     if checkpoint and args.init_from == "resume":
         optimizer.load_state_dict(checkpoint["optimizer"])
