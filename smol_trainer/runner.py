@@ -147,8 +147,13 @@ def setup_training_environment(args: argparse.Namespace) -> Any:
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
-    if os.path.exists(args.checkpoint_dir) or os.path.exists(
-        args.tensorboard_path
+    if (
+        (
+            os.path.exists(args.checkpoint_dir)
+            or os.path.exists(args.tensorboard_path)
+        )
+        and args.init_from == "scratch"
+        and args.master_process
     ):
         raise ValueError(
             f"Checkpoint directory {args.checkpoint_dir} or {args.tensorboard_path} already exists, please move before re-running."

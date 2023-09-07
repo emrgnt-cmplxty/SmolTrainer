@@ -11,7 +11,7 @@ from torch.optim import Optimizer
 def get_project_identifier(output_config: dict) -> str:
     """Returns the name of the checkpoint file"""
 
-    mode = "gpt" if output_config["mode"] == "gpt" else "moe"
+    mode = "gpt" if output_config["mode"].value == "gpt" else "moe"
     common_prefix = f"n_layer_{output_config['n_layer']}__n_head_{output_config['n_head']}__n_embd_{output_config['n_embd']}"
     if mode == "gpt":
         return f"mode_gpt__{common_prefix}"
