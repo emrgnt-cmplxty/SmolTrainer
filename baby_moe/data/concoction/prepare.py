@@ -29,51 +29,6 @@ test_size = 0.01
 # Configurations for the dataset and processing
 
 config = {
-    # # "alpaca-cot": {
-    # #     "dataset_name": "QingyiSi/Alpaca-CoT",
-    # #     "test_size": test_size,
-    # #     "shuffle": True,
-    # #     "format": {  # Format strings for each column
-    # #         "instruction": "### Instruction:\n",
-    # #         "input": "\n",
-    # #         "response": "\n### Response:\n",
-    # #     },
-    # # },
-    # #     "alpaca-gpt4": {
-    # #     "dataset_name": "teknium/GPT4-LLM-Cleaned",
-    # #     "test_size": test_size,
-    # #     "shuffle": True,
-    # #     "format": {  # Format strings for each column
-    # #         "instruction": "### Instruction:\n",
-    # #         "input": "\n### Input:\n",
-    # #         "output": "\n### Response:\n",
-    # #     },
-    # # },
-    #     "competition_math": {
-    #     "dataset_name": "competition_math",
-    #     "test_size": test_size,
-    #     "shuffle": True,
-    #     "format": {  # Format strings for each column
-    #         "problem": "### Instruction:\n",
-    #         "solution": "\n### Response:\n",
-    #     },
-    # },
-    ## short list -
-    # https://huggingface.co/datasets/kaist-ai/CoT-Collection/viewer/en/train?row=1
-    # https://huggingface.co/datasets/nomic-ai/gpt4all_prompt_generations
-    # https://huggingface.co/datasets/Muennighoff/natural-instructions/viewer/default/train?row=1
-    # https://huggingface.co/datasets/laion/OIG
-    # https://huggingface.co/datasets/roneneldan/TinyStories
-    # https://huggingface.co/datasets/SirNeural/flan_v2
-    # https://huggingface.co/datasets/stingning/ultrachat
-    # https://huggingface.co/datasets/laion/OIG
-    # https://huggingface.co/datasets/Open-Orca/FLAN
-    # https://huggingface.co/datasets/MBZUAI/LaMini-instruction/viewer/default/train?p=2&row=204
-    # https://huggingface.co/datasets/NTU-NLP-sg/xCodeEval
-    # https://huggingface.co/datasets/camel-ai/math
-    # https://huggingface.co/datasets/eli5_category/viewer/default/train?row=31
-    # https://huggingface.co/datasets/ehartford/dolphin/viewer/default/train?row=10
-    # https://huggingface.co/datasets/StudentLLM/Open-Wyvern-74k
     "open-orca": {
         "dataset_name": "Open-Orca/OpenOrca",
         "test_size": test_size,
@@ -88,7 +43,7 @@ config = {
         "dataset_name": "nampdn-ai/tiny-codes",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "prompt": "You are a helpful coding agent.\n### Instruction:\n",
             "response": "\n### Response:\n",
         },
@@ -107,7 +62,7 @@ config = {
         "dataset_name": "psmathur/WizardLM_Orca",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "system": "",
             "instruction": "### Instruction:\n",
             "output": "\n### Response:\n",
@@ -117,7 +72,7 @@ config = {
         "dataset_name": "conceptofmind/cot_submix_original",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "inputs": "",
             "targets": "",
         },
@@ -126,7 +81,7 @@ config = {
         "dataset_name": "teknium/GPTeacher-General-Instruct",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "instruction": "### Instruction:\n",
             "input": "\n### Input:\n",
             "response": "\n### Response:\n",
@@ -136,7 +91,7 @@ config = {
         "dataset_name": "yahma/alpaca-cleaned",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "instruction": "### Instruction:\n",
             "input": "\n### Input:\n",
             "output": "\n### Response:\n",
@@ -146,7 +101,7 @@ config = {
         "dataset_name": "sahil2801/CodeAlpaca-20k",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "instruction": "### Instruction:\n",
             "input": "\n",
             "output": "### Response:\n",
@@ -156,7 +111,7 @@ config = {
         "dataset_name": "TokenBender/unnatural_code_instructions_20M",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "text": "",
         },
     },
@@ -164,7 +119,7 @@ config = {
         "dataset_name": "nickrosh/Evol-Instruct-Code-80k-v1",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "instruction": "### Instruction:\n",
             "output": "\n### Response:\n",
         },
@@ -173,7 +128,7 @@ config = {
         "dataset_name": "garage-bAInd/Open-Platypus",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "instruction": "### Instruction:\n",
             "output": "\n### Response:\n",
         },
@@ -182,7 +137,7 @@ config = {
         "dataset_name": "theblackcat102/evol-codealpaca-v1",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "instruction": "### Instruction:\n",
             "output": "\n### Response:\n",
         },
@@ -191,7 +146,7 @@ config = {
         "dataset_name": "ehartford/wizard_vicuna_70k_unfiltered",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "conversations": "Below is a conversation between a human and a helpful agent, in JSON format.\n",
         },
     },
@@ -199,7 +154,7 @@ config = {
         "dataset_name": "lmsys/chatbot_arena_conversations",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "conversation_a": "Below is a conversation between a human and a helpful agent, in JSON format.\n",
             "conversation_b": "The following is a separate version of the same conversation, in JSON format.\n",
         },
@@ -208,7 +163,7 @@ config = {
         "dataset_name": "liuhaotian/LLaVA-Instruct-150K",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "conversations": "Below is a conversation between a human and a helpful agent, in JSON format.\n",
         },
     },
@@ -216,7 +171,7 @@ config = {
         "dataset_name": "kaist-ai/CoT-Collection",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "source": "You are a helpful assistant that thinks step-by-step to solve instructions.\n### Instruction:\n",
             "rationale": "\n### Response:\n### Thought:\n",
             "target": "\n### Answer:\n",
@@ -226,7 +181,7 @@ config = {
         "dataset_name": "mhhmm/leetcode-solutions-python",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "code_with_data": "Below is a coding problem with the correct solution:\n",
             "explanation_only": "Here is an explanation for the solution:\n",
         },
@@ -235,26 +190,17 @@ config = {
         "dataset_name": "skeskinen/TinyStories-GPT4",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "prompt": "",
             "story": "\n",
             "summary": "\n ### Summary:\n",
         },
     },
-    # bugged
-    # "wizard_lm_evol_v2": {
-    #     "dataset_name": "WizardLM/WizardLM_evol_instruct_V2_196k",
-    #     "test_size": test_size,
-    #     "shuffle": True,
-    #     "format": {  # Format strings for each column
-    #         "conversations": "Below is a conversation between a human and a helpful agent, in JSON format.\n",
-    #     },
-    # },
     "claude_instruct": {
         "dataset_name": "Norquinal/claude_evol_instruct_210k",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "instruction": "### Instruction:\n",
             "output": "\n### Response:\n",
         },
@@ -263,7 +209,7 @@ config = {
         "dataset_name": "jondurbin/airoboros-2.1",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "system": "",
             "instruction": "### Instruction:\n",
             "response": "\n### Response:\n",
@@ -273,7 +219,7 @@ config = {
         "dataset_name": "databricks/databricks-dolly-15k",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "instruction": "### User:\n",
             "response": "\n### Assistant:\n",
         },
@@ -282,11 +228,27 @@ config = {
         "dataset_name": "Norquinal/claude_multiround_chat_30k",
         "test_size": test_size,
         "shuffle": True,
-        "format": {  # Format strings for each column
+        "format": {
             "conversations": "Below is a conversation between a human and a helpful assistant, in JSON format.\n",
         },
     },
 }
+# Short List For Addition
+# https://huggingface.co/datasets/kaist-ai/CoT-Collection/viewer/en/train?row=1
+# https://huggingface.co/datasets/nomic-ai/gpt4all_prompt_generations
+# https://huggingface.co/datasets/Muennighoff/natural-instructions/viewer/default/train?row=1
+# https://huggingface.co/datasets/laion/OIG
+# https://huggingface.co/datasets/roneneldan/TinyStories
+# https://huggingface.co/datasets/SirNeural/flan_v2
+# https://huggingface.co/datasets/stingning/ultrachat
+# https://huggingface.co/datasets/laion/OIG
+# https://huggingface.co/datasets/Open-Orca/FLAN
+# https://huggingface.co/datasets/MBZUAI/LaMini-instruction/viewer/default/train?p=2&row=204
+# https://huggingface.co/datasets/NTU-NLP-sg/xCodeEval
+# https://huggingface.co/datasets/camel-ai/math
+# https://huggingface.co/datasets/eli5_category/viewer/default/train?row=31
+# https://huggingface.co/datasets/ehartford/dolphin/viewer/default/train?row=10
+# https://huggingface.co/datasets/StudentLLM/Open-Wyvern-74k
 
 
 def load_and_split_dataset(config):
