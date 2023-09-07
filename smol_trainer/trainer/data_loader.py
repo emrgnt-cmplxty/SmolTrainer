@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from utils import get_root_py_fpath
 
-from baby_moe.config import TrainConfig
+from smol_trainer.config import TrainConfig
 
 
 def load_data(

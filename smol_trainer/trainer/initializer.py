@@ -8,8 +8,9 @@ from typing import Any, Optional, Tuple
 import torch
 from torch.nn import Module
 
-from baby_moe.model import MoEGPT
-from baby_moe.nano_gpt.model import GPT, GPTConfig
+from smol_trainer.config import Mode
+from smol_trainer.model import MoEGPT
+from smol_trainer.nano_gpt.model import GPT, GPTConfig
 
 
 def initialize_optimizer(
@@ -49,7 +50,7 @@ def initialize_model_from_scratch(
     logger.info("Running in architecture mode = {args.mode}")
     return (
         GPT(gptconf)
-        if args.mode == "gpt"
+        if args.mode == Mode.GPT
         else MoEGPT(gptconf, args.n_experts, args.top_k_experts)
     )
 

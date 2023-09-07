@@ -3,9 +3,9 @@ requires = ["poetry-core", "setuptools", "wheel"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-name = "Baby-MoE"
+name = "SmolTrainer"
 version = "0.1.0"
-description = "Make your very own BabyMoE."
+description = "A smol interface for training, built on top of nanoGPT."
 authors = ["Owen Colegrove <owen@emergentagi.com>"]
 license = "Apache-2.0"
 readme = "README.md"
@@ -36,15 +36,15 @@ line-length = 79
 exclude = '''
 (
   /(
-    | baby_moe/nano_gpt/
+    | smol_trainer/nano_gpt/
   )/
 )
 '''
 
 [tool.mypy]
 ignore_missing_imports = true
-exclude = 'baby_moe/nano_gpt/|baby_moe/inference.py|baby_moe/model/lora.py'
+exclude = 'smol_trainer/nano_gpt/|smol_trainer/inference.py|smol_trainer/model/lora.py'
 
 [tool.flake8]
 ignore = ["E501", "W503"]
-exclude = 'baby_moe/nano_gpt/'
+exclude = 'smol_trainer/nano_gpt/'
