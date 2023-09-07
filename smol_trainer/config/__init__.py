@@ -1,3 +1,3 @@
-from smol_trainer.config.train import LearningConfig, TrainConfig
+from smol_trainer.config.train import LearningConfig, TrainConfig, Mode
 
-__all__ = ["TrainConfig", "LearningConfig"]
+__all__ = ["TrainConfig", "LearningConfig", "Mode"]
