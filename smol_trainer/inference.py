@@ -33,7 +33,7 @@ model_prefix = "checkpoint__mode_moe__n_layer_4__n_head_4__n_embd_128__n_experts
 iter_num = "2000"
 meta_path = "x"
 exec(
-    open("smol_trainer/nano_gpt/configurator.py").read()
+    open("nano_gpt/configurator.py").read()
 )  # overrides from command line or config file
 # -----------------------------------------------------------------------------
 

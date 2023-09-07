@@ -3,7 +3,7 @@ requires = ["poetry-core", "setuptools", "wheel"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-name = "SmolTrainer"
+name = "smol-trainer"
 version = "0.1.0"
 description = "A smol interface for training, built on top of nanoGPT."
 authors = ["Owen Colegrove <owen@emergentagi.com>"]

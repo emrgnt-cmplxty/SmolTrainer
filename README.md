@@ -37,6 +37,14 @@ git submodule update --init
 # Install poetry and the project
 pip3 install poetry && poetry install
 
+#  - If on A100 or newer - 
+# Install PyTorch nightly 2.1.0 to use the latest Flash Attention.
+# poetry run pip install --index-url https://download.pytorch.org/whl/nightly/cu118 --pre 'torch>=2.1.0dev'
+# poetry run pip install 'flash-attn>=2.0.0.post1' --no-build-isolation
+# Update smol_trainer/nano_gpt/model.py attention mechansim by hand to use flash_attn
+# e.g. return flash_attn_func(q, k, v, dropout_p=0.0, softmax_scale=scale, causal=True)
+
+
 # Optional development tooling
 # pre-commit install
 ```
@@ -56,11 +64,7 @@ mv smol_trainer/nano_gpt/data/shakespeare smol_trainer/data
 # Perform a training run with GPT
 export DATASET=shakespeare
 export MODE=gpt
-poetry run python smol_trainer/runner.py --device=cpu --compile=False --eval-iters=20 --log-interval=1 --block-size=64 --batch-size=12 --n-layer=4 --n-head=4 --n-embd=128 --max-iters=2000 --lr-decay-iters=60000 --dropout=0.0 --mode=$MODE --dataset=$DATASET --gradient-accumulation-steps=1 --min-lr=1e-4 --beta2=0.99 --n-experts=128 --top-k-experts=16  --eval-interval=50
-
-# Perform a training run with MoE
-export MODE=moe
-poetry run python smol_trainer/runner.py --device=cpu --compile=False --eval-iters=20 --log-interval=1 --block-size=64 --batch-size=12 --n-layer=4 --n-head=4 --n-embd=128 --max-iters=2000 --lr-decay-iters=60000 --dropout=0.0 --mode=$MODE --dataset=$DATASET --gradient-accumulation-steps=1 --min-lr=1e-4 --beta2=0.99 --n-experts=128 --top-k-experts=16  --eval-interval=50
+poetry run python smol_trainer/runner.py --compile=True --eval-iters=20 --log-interval=1 --block-size=1024 --batch-size=12 --n-layer=12 --n-head=12 --n-embd=768 --max-iters=2000000 --lr-decay-iters=60000 --dropout=0.0 --mode=$MODE --dataset=$DATASET --gradient-accumulation-steps=1 --min-lr=1e-4 --beta2=0.99 --n-experts=1 --top-k-experts=1  --eval-interval=2500 --grad-clip=1
 
 # Monitor your progress
 poetry run tensorboard --logdir=results/
