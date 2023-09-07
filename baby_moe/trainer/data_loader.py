@@ -17,7 +17,7 @@ def load_data(
     dataset: str,
 ) -> Tuple[np.memmap, np.memmap, Optional[int]]:
     """Load training and validation data."""
-    data_dir = os.path.join(get_root_py_fpath(), "nano_gpt", "data", dataset)
+    data_dir = os.path.join(get_root_py_fpath(), "data", dataset)
     train_data = np.memmap(
         os.path.join(get_root_py_fpath(), data_dir, "train.bin"),
         dtype=np.uint16,
