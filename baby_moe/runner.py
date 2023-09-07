@@ -208,8 +208,14 @@ if __name__ == "__main__":
     optimizer = initialize_optimizer(args, model, checkpoint)
 
     # Initialize a GradScaler. If enabled=False scaler is a no-op
-    scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype == "float16"))
-
+    # We must comment out this code which appears in nanoGPT
+    # This is to avoid explosions of gradients when using Torch 2.0.x
+    # The authors in nanoGPT claim this is a fault of Torch
+    # TODO - Investigate this further
+    # scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype == "float16"))
+    scaler = torch.cuda.amp.GradScaler(
+        enabled=(args.dtype == "float16"), growth_interval=0
+    )
     # Compile the model
     if args.compile:
         logger.info("Compiling the model... (takes a ~minute)")
