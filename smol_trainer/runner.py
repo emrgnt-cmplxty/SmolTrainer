@@ -25,13 +25,13 @@ from contextlib import nullcontext
 from typing import Any, Union
 
 import torch
+import wandb
 from torch.distributed import destroy_process_group, init_process_group
 from torch.nn import Module
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 
-import wandb
-from smol_trainer.config import Mode, LearningConfig, TrainConfig
+from smol_trainer.config import LearningConfig, Mode, TrainConfig
 from smol_trainer.trainer import (
     crop_and_move_model,
     get_checkpoint_prefix,
@@ -268,7 +268,7 @@ if __name__ == "__main__":
         wandb_log=args.wandb_log,
         # Architecture
         bias=args.bias,
-        mode=Mode(args.mode),
+        mode=args.mode,
         dropout=args.dropout,
         n_head=args.n_head,
         n_layer=args.n_layer,

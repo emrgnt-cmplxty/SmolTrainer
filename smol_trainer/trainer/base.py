@@ -9,11 +9,11 @@ from typing import Any
 
 import numpy as np
 import torch
+import wandb
 from torch.cuda.amp import GradScaler
 from torch.nn import Module
 from torch.optim import Optimizer
 
-import wandb
 from smol_trainer.config.train import LearningConfig, TrainConfig
 from smol_trainer.trainer.checkpointer import (
     manage_checkpoints,

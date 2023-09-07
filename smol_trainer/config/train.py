@@ -1,7 +1,7 @@
-from enum import Enum
 import logging
 import time
 from dataclasses import dataclass
+from enum import Enum
 
 from torch.utils.tensorboard import SummaryWriter
 
