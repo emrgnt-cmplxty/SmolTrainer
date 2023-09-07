@@ -254,6 +254,9 @@ if __name__ == "__main__":
         gradient_accumulation_steps=args.gradient_accumulation_steps,
     )
 
+    if args.mode not in Mode.__members__:
+        raise ValueError(f"Invalid mode specified {args=} {Mode.__members__}")
+
     # Initialize the training config
     train_config = TrainConfig(
         # Logging support

@@ -234,6 +234,12 @@ def parse_args():
         default=True,
         help="Use PyTorch 2.0 to compile the model to be faster.",
     )
+    parser.add_argument(
+        "--model-path",
+        default="ckpt.pt",
+        type=str,
+        help="Path to the model",
+    )
 
     return parser.parse_args()
 
