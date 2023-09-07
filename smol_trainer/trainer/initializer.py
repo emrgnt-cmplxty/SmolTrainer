@@ -52,7 +52,11 @@ def configure_optimizers(
     # )
 
     return torch.optim.AdamW(
-        optim_groups, fused=False, lr=learning_rate, betas=betas
+        optim_groups,
+        fused=False,
+        lr=learning_rate,
+        betas=betas,
+        device_type=device_type,
     )
 
 
@@ -90,7 +94,7 @@ def initialize_model_from_scratch(
     )
     logger.info(f"Model is initializing with args:\n{args.model_args}")
     gptconf = GPTConfig(**args.model_args)
-    logger.info("Running in architecture mode = {args.mode}")
+    logger.info(f"Running in architecture mode = {args.mode}")
     return (
         GPT(gptconf)
         if args.mode == Mode.GPT.value
