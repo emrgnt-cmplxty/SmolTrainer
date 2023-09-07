@@ -64,7 +64,7 @@ mv smol_trainer/nano_gpt/data/shakespeare smol_trainer/data
 # Perform a training run with GPT
 export DATASET=shakespeare
 export MODE=gpt
-poetry run python smol_trainer/runner.py --compile=True --eval-iters=20 --log-interval=1 --block-size=1024 --batch-size=12 --n-layer=12 --n-head=12 --n-embd=768 --max-iters=2000000 --lr-decay-iters=60000 --dropout=0.0 --mode=$MODE --dataset=$DATASET --gradient-accumulation-steps=1 --min-lr=1e-4 --beta2=0.99 --n-experts=1 --top-k-experts=1  --eval-interval=2500 --grad-clip=1
+poetry run python smol_trainer/runner.py --compile=True --eval-iters=20 --log-interval=1 --block-size=1024 --batch-size=12 --n-layer=12 --n-head=12 --n-embd=768 --max-iters=2000000 --lr-decay-iters=60000 --dropout=0.0 --mode=$MODE --dataset=$DATASET --gradient-accumulation-steps=1 --min-lr=1e-4 --beta2=0.99 --eval-interval=2500 --grad-clip=1
 
 # Monitor your progress
 poetry run tensorboard --logdir=results/

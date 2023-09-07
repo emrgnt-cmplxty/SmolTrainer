@@ -25,13 +25,13 @@ from contextlib import nullcontext
 from typing import Any, Union
 
 import torch
+import wandb
 from torch.distributed import destroy_process_group, init_process_group
 from torch.nn import Module
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 
-import wandb
-from smol_trainer.config import Mode, LearningConfig, TrainConfig
+from smol_trainer.config import LearningConfig, Mode, TrainConfig
 from smol_trainer.trainer import (
     crop_and_move_model,
     get_checkpoint_prefix,
@@ -254,6 +254,11 @@ if __name__ == "__main__":
         gradient_accumulation_steps=args.gradient_accumulation_steps,
     )
 
+    if args.mode not in [member.value for member in Mode.__members__.values()]:
+        raise ValueError(
+            f"Invalid mode specified {args.mode} {Mode.__members__}"
+        )
+
     # Initialize the training config
     train_config = TrainConfig(
         # Logging support
@@ -265,7 +270,7 @@ if __name__ == "__main__":
         wandb_log=args.wandb_log,
         # Architecture
         bias=args.bias,
-        mode=Mode(args.mode),
+        mode=args.mode,
         dropout=args.dropout,
         n_head=args.n_head,
         n_layer=args.n_layer,

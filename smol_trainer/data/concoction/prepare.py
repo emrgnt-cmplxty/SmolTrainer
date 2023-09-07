@@ -6,9 +6,9 @@ import os
 
 import numpy as np
 import tiktoken
-from datasets import load_dataset, concatenate_datasets  # huggingface datasets
-from tqdm import tqdm
+from datasets import concatenate_datasets, load_dataset  # huggingface datasets
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 load_dotenv()
 

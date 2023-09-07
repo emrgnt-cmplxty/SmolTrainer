@@ -5,6 +5,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from smol_trainer.nano_gpt.model import GPT, Block
 
 

@@ -1,8 +1,8 @@
 """A module for uploading checkpoints to GCS"""
 # TODO - Implement AWS & others, dynamically detect environment.
 import os
-import time
 import subprocess
+import time
 
 # If running on GCS, you must login
 # gcloud auth login YOUR_AUTHENTICATED_USER

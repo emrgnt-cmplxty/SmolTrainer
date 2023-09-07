@@ -107,7 +107,10 @@ def initialize_model_from_checkpoint(
     logger.info(f"Resuming training from {args.out_dir}")
 
     # TODO - Fix this to dynamically write the correct path.
-    ckpt_path = os.path.join(args.out_dir, "ckpt.pt")
+    ckpt_path = os.path.join(args.out_dir, args.model_path)
+    if not os.path.exists(ckpt_path):
+        raise ValueError(f"Checkpoint path {ckpt_path} does not exist")
+
     checkpoint = torch.load(ckpt_path, map_location=args.device)
 
     for k in [
