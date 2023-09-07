@@ -50,7 +50,7 @@ def initialize_model_from_scratch(
     logger.info("Running in architecture mode = {args.mode}")
     return (
         GPT(gptconf)
-        if args.mode == Mode.GPT
+        if args.mode == Mode.GPT.value
         else MoEGPT(gptconf, args.n_experts, args.top_k_experts)
     )
 
