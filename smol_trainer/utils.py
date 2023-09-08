@@ -168,7 +168,12 @@ def parse_args():
     parser.add_argument(
         "--grad-clip", default=1.0, type=float, help="Gradient clipping value"
     )
-
+    parser.add_argument(
+        "--do-flash-v2",
+        default=False,
+        action="store_true",
+        help="Use flash v2 calculation (Requires A100 or better).",
+    )
     # Learning rate decay settings
     parser.add_argument(
         "--decay-lr",

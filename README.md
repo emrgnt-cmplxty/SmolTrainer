@@ -81,8 +81,7 @@ poetry run tensorboard --logdir=results/
 poetry run python smol_trainer/inference.py --model_prefix=run_0_checkpoint__mode_moe__n_layer_12__n_head_4__n_embd_128__n_experts_8__top_k_experts_8
 ```
 
-
-### TODO 
+### TODO
 
 - [ ] Add llama model to training workflow
 - [ ] Add lora model to training workflow

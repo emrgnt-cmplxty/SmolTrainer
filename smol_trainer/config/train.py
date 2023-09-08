@@ -28,6 +28,7 @@ class LearningConfig:
     weight_decay: float
     beta1: float
     beta2: float
+    do_flash_v2: bool
 
     # Iteration variables
     warmup_iters: int

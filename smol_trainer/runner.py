@@ -193,6 +193,7 @@ if __name__ == "__main__":
         bias=args.bias,
         vocab_size=None,
         dropout=args.dropout,
+        do_flash_v2=args.do_flash_v2,
     )  # start with model_args from command line
 
     logger.info(f"Running over dataset = {args.dataset}")
@@ -248,6 +249,7 @@ if __name__ == "__main__":
         weight_decay=args.weight_decay,
         beta1=args.beta1,
         beta2=args.beta2,
+        do_flash_v2=args.do_flash_v2,
         # Iteration variables
         lr_decay_iters=args.lr_decay_iters,
         warmup_iters=args.warmup_iters,
