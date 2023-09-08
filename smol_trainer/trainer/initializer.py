@@ -9,8 +9,7 @@ import torch
 from torch.nn import Module
 
 from smol_trainer.config import Mode
-from smol_trainer.model import MoEGPT
-from smol_trainer.nano_gpt.model import GPT, GPTConfig
+from smol_trainer.model import MoEGPT, GPT, GPTConfig
 
 
 def configure_optimizers(model: Module, weight_decay, learning_rate, betas):
@@ -119,6 +118,7 @@ def initialize_model_from_checkpoint(
         "n_embd",
         "block_size",
         "bias",
+        "do_flash_v2",
     ]:
         args.model_args[k] = checkpoint[k]
 

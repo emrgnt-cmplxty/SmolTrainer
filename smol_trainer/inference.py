@@ -9,8 +9,7 @@ import tiktoken
 import torch
 
 from smol_trainer.config import Mode
-from smol_trainer.model.moe import MoEGPT
-from smol_trainer.nano_gpt.model import GPT, GPTConfig
+from smol_trainer.model import MoEGPT, GPT, GPTConfig
 
 # -----------------------------------------------------------------------------
 init_from = "resume"  # either 'resume' (from an out_dir) or a gpt2 variant (e.g. 'gpt2-xl')
@@ -70,6 +69,7 @@ if init_from == "resume":
         n_embd=checkpoint["n_embd"],
         dropout=checkpoint["dropout"],
         bias=checkpoint["bias"],
+        do_flash_v2=checkpoint["do_flash_v2"],
     )
     model = (
         GPT(gptconf)
