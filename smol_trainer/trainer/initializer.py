@@ -8,7 +8,7 @@ from typing import Any, Optional, Tuple
 import torch
 from torch.nn import Module
 
-from smol_trainer.config import Mode
+from smol_trainer.config import Model
 from smol_trainer.model import MoEGPT, GPT, GPTConfig
 
 
@@ -88,14 +88,16 @@ def initialize_model_from_scratch(
     args.model_args["vocab_size"] = (
         meta_vocab_size if meta_vocab_size is not None else 50304
     )
-    logger.info(f"Model is initializing with args:\n{args.model_args}")
-    gptconf = GPTConfig(**args.model_args)
-    logger.info(f"Running in architecture mode = {args.mode}")
-    return (
-        GPT(gptconf)
-        if args.mode == Mode.GPT.value
-        else MoEGPT(gptconf, args.n_experts, args.top_k_experts)
-    )
+    logger.info(f"Running model {args.model} with args:\n{args.model_args}")
+
+    if args.model == Model.GPT.value:
+        gptconf = GPTConfig(**args.model_args)
+        return GPT(gptconf)
+    elif args.model == Model.MOE.value:
+        gptconf = GPTConfig(**args.model_args)
+        return MoEGPT(gptconf, args.n_experts, args.top_k_experts)
+    else:
+        raise NotImplementedError(f"{args.model} is not supported yet.")
 
 
 def initialize_model_from_checkpoint(

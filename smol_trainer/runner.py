@@ -29,9 +29,8 @@ import wandb
 from torch.distributed import destroy_process_group, init_process_group
 from torch.nn import Module
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.tensorboard import SummaryWriter
 
-from smol_trainer.config import LearningConfig, Mode, TrainConfig
+from smol_trainer.config import LearningConfig, Model, TrainConfig
 from smol_trainer.trainer import (
     crop_and_move_model,
     get_checkpoint_prefix,
@@ -163,7 +162,7 @@ def setup_training_environment(args: argparse.Namespace) -> Any:
 
 def initialize_run_performance_logging(
     args: argparse.Namespace,
-) -> SummaryWriter:
+) -> None:
     """Initialize logging with WandB and TensorBoard."""
     if args.wandb_log and args.master_process:
         config_dict = vars(args)
@@ -172,7 +171,6 @@ def initialize_run_performance_logging(
             name=args.run_name,
             config=config_dict,
         )
-    return SummaryWriter(log_dir=args.tensorboard_path)
 
 
 if __name__ == "__main__":
@@ -256,15 +254,17 @@ if __name__ == "__main__":
         gradient_accumulation_steps=args.gradient_accumulation_steps,
     )
 
-    if args.mode not in [member.value for member in Mode.__members__.values()]:
+    models = Model.__members__.values()
+    if args.model not in [member.value for member in models]:
         raise ValueError(
-            f"Invalid mode specified {args.mode} {Mode.__members__}"
+            f"Invalid model `{args.model}` specified, only {models} are available."
         )
+
+    initialize_run_performance_logging(args)
 
     # Initialize the training config
     train_config = TrainConfig(
         # Logging support
-        tb_writer=initialize_run_performance_logging(args),
         logger=logger,
         lr_config=lr_config,
         master_process=args.master_process,
@@ -272,7 +272,7 @@ if __name__ == "__main__":
         wandb_log=args.wandb_log,
         # Architecture
         bias=args.bias,
-        mode=args.mode,
+        model=args.model,
         dropout=args.dropout,
         n_head=args.n_head,
         n_layer=args.n_layer,

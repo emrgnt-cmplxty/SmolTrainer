@@ -61,13 +61,28 @@ mv smol_trainer/nano_gpt/data/shakespeare smol_trainer/data
 ## Train
 
 ```bash
-# Perform a training run with GPT
+# Perform a local training run with GPT
 export DATASET=shakespeare
-export MODE=gpt
-poetry run python smol_trainer/runner.py --compile=True --eval-iters=20 --log-interval=1 --block-size=1024 --batch-size=12 --n-layer=12 --n-head=12 --n-embd=768 --max-iters=2000000 --lr-decay-iters=60000 --dropout=0.0 --mode=$MODE --dataset=$DATASET --gradient-accumulation-steps=1 --min-lr=1e-4 --beta2=0.99 --eval-interval=2500 --grad-clip=1
+export MODEL=gpt
+poetry run python smol_trainer/runner.py  --eval-iters=20 --log-interval=1 --block-size=1024 --batch-size=12 --n-layer=12 --n-head=12 --n-embd=768 --max-iters=2000000 --lr-decay-iters=60000 --dropout=0.0 --model=$MODEL --dataset=$DATASET --gradient-accumulation-steps=1 --min-lr=1e-4 --beta2=0.99 --eval-interval=2500 --grad-clip=1 --compile=False --device=cpu
 
-# Monitor your progress
-poetry run tensorboard --logdir=results/
+```
+
+Great, now let's proceed onward to train the full UberSmol model. We assume that the training run occurs on 8x A100s.
+
+```bash
+
+## UberSmol-pico
+poetry run torchrun --standalone --nproc_per_node=8 smol_trainer/runner.py --batch-size=8 --n-layer=12 --n-head=12 --n-embd=768 --dataset=concoction  --gradient-accumulation-steps=40 --wandb-log --eval-iters=250
+
+## UberSmol-nano
+poetry run torchrun --standalone --nproc_per_node=8 smol_trainer/runner.py --batch-size=8 --n-layer=24 --n-head=16 --n-embd=1024 --dataset=concoction  --gradient-accumulation-steps=40 --wandb-log --eval-iters=250
+
+## UberSmol-micro
+poetry run torchrun --standalone --nproc_per_node=8 smol_trainer/runner.py --batch-size=8 --n-layer=36 --n-head=20 --n-embd=1280 --dataset=concoction  --gradient-accumulation-steps=40 --wandb-log --eval-iters=500
+
+## UberSmol-mili
+poetry run torchrun --standalone --nproc_per_node=8 smol_trainer/runner.py --batch-size=8 --n-layer=48 --n-head=25 --n-embd=1600 --dataset=concoction  --gradient-accumulation-steps=40 --wandb-log --eval-iters=500
 ```
 
 ### Comments

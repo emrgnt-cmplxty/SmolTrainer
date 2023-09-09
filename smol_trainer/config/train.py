@@ -3,10 +3,8 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 
-from torch.utils.tensorboard import SummaryWriter
 
-
-class Mode(Enum):
+class Model(Enum):
     MOE = "moe"
     GPT = "gpt"
     LLAMA = "llama"
@@ -41,7 +39,6 @@ class TrainConfig:
     """Training configuration."""
 
     # Logging support
-    tb_writer: SummaryWriter
     logger: logging.Logger
     lr_config: LearningConfig
     master_process: bool
@@ -50,7 +47,7 @@ class TrainConfig:
 
     # Arhitecture
     bias: bool
-    mode: Mode
+    model: Model
     dropout: float
     n_head: int
     n_layer: int
