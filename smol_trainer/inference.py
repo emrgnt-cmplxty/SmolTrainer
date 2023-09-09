@@ -8,7 +8,7 @@ from contextlib import nullcontext
 import tiktoken
 import torch
 
-from smol_trainer.config import Mode
+from smol_trainer.config import Model
 from smol_trainer.model import MoEGPT, GPT, GPTConfig
 
 # -----------------------------------------------------------------------------
@@ -73,7 +73,7 @@ if init_from == "resume":
     )
     model = (
         GPT(gptconf)
-        if checkpoint["mode"].value == Mode.GPT.value
+        if checkpoint["model"].value == Model.GPT.value
         else MoEGPT(
             gptconf, checkpoint["n_experts"], checkpoint["top_k_experts"]
         )

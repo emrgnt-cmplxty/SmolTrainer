@@ -58,10 +58,6 @@ def log_metrics(
     dt: float,
 ):
     """Log metrics during training."""
-    config.tb_writer.add_scalar("Training Loss", lossf, config.iter_num)
-    config.tb_writer.add_scalar(
-        "Learning Rate", config.lr_config.lr, config.iter_num
-    )
     config.logger.info(
         f"iter {config.iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, 100*mfu {config.running_mfu*100*100:.2f}%"
     )
@@ -113,10 +109,6 @@ def perform_evaluation(
     config.logger.info(
         f"Eval @ iter = {config.iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}, total time {config.total_time:.2f}"
     )
-    config.tb_writer.add_scalar(
-        "Validation Loss", losses["val"], config.iter_num
-    )
-    config.tb_writer.add_scalar("Time", config.total_time, config.iter_num)
 
     # Logging with WandB
     if config.wandb_log:
@@ -137,7 +129,6 @@ def perform_evaluation(
         if config.iter_num > 0:
             output_config = custom_asdict(config)
             output_config.pop("logger")
-            output_config.pop("tb_writer")
             save_checkpoint(
                 output_config,
                 raw_model,

@@ -151,7 +151,7 @@ def parse_args():
         help="Maximum number of training iterations",
     )
     parser.add_argument(
-        "--mode", default="gpt", type=str, help="Mode to run the model"
+        "--model", default="gpt", type=str, help="Model to run the model"
     )
     parser.add_argument(
         "--weight-decay",
