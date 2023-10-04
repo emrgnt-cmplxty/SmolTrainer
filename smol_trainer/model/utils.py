@@ -3,9 +3,10 @@
 #     http://www.apache.org/licenses/LICENSE-2.0
 
 import importlib
-from importlib.util import find_spec
 from functools import lru_cache
+from importlib.util import find_spec
 from typing import Optional
+
 import pkg_resources
 
 

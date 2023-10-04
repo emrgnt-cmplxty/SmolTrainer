@@ -90,7 +90,7 @@ def initialize_model_from_checkpoint(
     logger.info(f"Resuming training from {args.out_dir}")
 
     # TODO - Fix this to dynamically write the correct path.
-    ckpt_path = os.path.join(args.out_dir, args.model_path)
+    ckpt_path = os.path.join(args.out_dir, args.model_ckpt_name)
     if not os.path.exists(ckpt_path):
         raise ValueError(f"Checkpoint path {ckpt_path} does not exist")
 

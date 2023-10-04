@@ -63,7 +63,7 @@ def parse_args():
         "--init-from",
         default="scratch",
         type=str,
-        choices=["scratch", "resume", "gpt2*"],
+        choices=["scratch", "resume"],
         help="Initialization mode: scratch, resume or gpt2*",
     )
     parser.add_argument(
@@ -205,7 +205,7 @@ def parse_args():
         help="Use PyTorch 2.0 to compile the model to be faster.",
     )
     parser.add_argument(
-        "--model-path",
+        "--model-ckpt-name",
         default="ckpt.pt",
         type=str,
         help="Path to the model",

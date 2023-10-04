@@ -56,7 +56,13 @@ pip3 install poetry && poetry install
 # Perform a local training run with GPT
 export DATASET=shakespeare
 export MODEL_NAME=pythia-70m
-poetry run python smol_trainer/runner.py  --model-name=$MODEL_NAME --dataset=$DATASET --batch-size=8 --block-size=64 --eval-iters=250 --compile=False --device=cpu 
+poetry run python smol_trainer/runner.py --model-name=$MODEL_NAME --dataset=$DATASET --batch-size=8 --block-size=64 --eval-iters=250 --compile=False --device=cpu 
+
+# To load from a checkpoint
+poetry run python smol_trainer/runner.py --model-name=$MODEL_NAME --dataset=$DATASET \
+--batch-size=8 --block-size=64 --eval-iters=250 --compile=False --device=cpu \ 
+--model-ckpt-name=checkpiont_run_namge_run_0__model_test-local__iter_num_8.pt
+
 ```
 
 Great, now let's proceed onward to train the full UberSmol models.

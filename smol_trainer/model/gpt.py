@@ -8,15 +8,13 @@ Derived from https://github.com/Lightning-AI/lit-gpt/tree/main. Apache-2 License
 import math
 from typing import Any, Optional, Tuple
 
-from typing_extensions import Self
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-import math
-
-from smol_trainer.model.utils import RequirementCache
+from typing_extensions import Self
 
 from smol_trainer.config import ModelConfig
+from smol_trainer.model.utils import RequirementCache
 
 
 class RMSNorm(torch.nn.Module):
