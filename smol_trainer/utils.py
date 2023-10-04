@@ -69,6 +69,7 @@ def parse_args():
     parser.add_argument(
         "--run-name", default="run_0", type=str, help="Specify the run name."
     )
+
     # WandB logging
     parser.add_argument(
         "--wandb-log",
@@ -96,45 +97,10 @@ def parse_args():
 
     # Model arguments
     parser.add_argument(
-        "--n-layer",
-        default=12,
-        type=int,
-        help="Number of layers in the GPT model",
-    )
-    parser.add_argument(
-        "--n-head",
-        default=12,
-        type=int,
-        help="Number of heads in the GPT model",
-    )
-    parser.add_argument(
-        "--n-embd",
-        default=768,
-        type=int,
-        help="Embedding dimension in the GPT model",
-    )
-    parser.add_argument(
-        "--dropout", default=0.0, type=float, help="Dropout rate"
-    )
-    parser.add_argument(
-        "--bias",
-        default=False,
-        action="store_true",
-        help="Use bias inside LayerNorm and Linear layers",
-    )
-
-    # MoE Settings
-    parser.add_argument(
-        "--n-experts",
-        default=12,
-        type=int,
-        help="Number of experts for the MoE model.",
-    )
-    parser.add_argument(
-        "--top-k-experts",
-        default=6,
-        type=int,
-        help="Top k to consider for gating.",
+        "--model-name",
+        default="pythia-70m",
+        type=str,
+        help="The name of the model to run with.",
     )
 
     # Optimizer arguments
@@ -149,9 +115,6 @@ def parse_args():
         default=600000,
         type=int,
         help="Maximum number of training iterations",
-    )
-    parser.add_argument(
-        "--model", default="gpt", type=str, help="Model to run the model"
     )
     parser.add_argument(
         "--weight-decay",
@@ -174,6 +137,7 @@ def parse_args():
         action="store_true",
         help="Use flash v2 calculation (Requires A100 or better).",
     )
+
     # Learning rate decay settings
     parser.add_argument(
         "--decay-lr",
@@ -223,6 +187,7 @@ def parse_args():
         else:
             raise argparse.ArgumentTypeError("Boolean value expected.")
 
+    # Other arguments
     parser.add_argument(
         "--device", default="cuda", type=str, help="Device to use for training"
     )

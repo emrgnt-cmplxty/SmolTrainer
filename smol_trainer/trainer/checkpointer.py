@@ -7,27 +7,16 @@ import torch
 from torch.nn import Module
 from torch.optim import Optimizer
 
-from smol_trainer.config import Model
-
 
 def get_project_identifier(output_config: dict) -> str:
     """Returns the name of the checkpoint file"""
 
-    common_prefix = f"n_layer_{output_config['n_layer']}__n_head_{output_config['n_head']}__n_embd_{output_config['n_embd']}"
-    if (
-        output_config["model"] == Model.GPT.value
-        or output_config["model"] == Model.LLAMA.value
-    ):
-        return f"mode_gpt__{common_prefix}"
-    elif output_config["model"] == Model.MOE.value:
-        return f"mode_moe__{common_prefix}__n_experts_{output_config['n_experts']}__top_k_experts_{output_config['top_k_experts']}"
-    else:
-        raise NotImplementedError("This mode is not supported yet.")
+    return f"run_namge_{output_config['run_name']}__model_{output_config['model_name']}"
 
 
 def get_checkpoint_prefix(output_config: dict) -> str:
     """Returns the name of the checkpoint file"""
-    return f"{output_config['run_name']}_checkpoint__{get_project_identifier(output_config)}"
+    return f"checkpiont_{get_project_identifier(output_config)}"
 
 
 def manage_checkpoints(output_config: dict) -> None:

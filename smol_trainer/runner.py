@@ -30,13 +30,11 @@ from torch.distributed import destroy_process_group, init_process_group
 from torch.nn import Module
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from smol_trainer.config import LearningConfig, Model, TrainConfig
+from smol_trainer.config import LearningConfig, TrainConfig
 from smol_trainer.trainer import (
-    crop_and_move_model,
     get_checkpoint_prefix,
     get_project_identifier,
     initialize_model_from_checkpoint,
-    initialize_model_from_gpt2,
     initialize_model_from_scratch,
     initialize_optimizer,
     load_data,
@@ -182,32 +180,20 @@ if __name__ == "__main__":
 
     amp_context = setup_training_environment(args)
 
-    # Setting model arguments  init
-    args.model_args = dict(
-        n_layer=args.n_layer,
-        n_head=args.n_head,
-        n_embd=args.n_embd,
-        block_size=args.block_size,
-        bias=args.bias,
-        vocab_size=None,
-        dropout=args.dropout,
-        do_flash_v2=args.do_flash_v2,
-    )  # start with model_args from command line
-
     logger.info(f"Running over dataset = {args.dataset}")
     train_data, val_data, meta_vocab_size = load_data(logger, args.dataset)
 
     checkpoint = None
     if args.init_from == "scratch":
-        model: Module = initialize_model_from_scratch(
-            args, meta_vocab_size, logger
-        )
+        model: Module = initialize_model_from_scratch(args, logger)
     elif args.init_from == "resume":
         model, checkpoint = initialize_model_from_checkpoint(args, logger)
-    elif args.init_from.startswith("gpt2"):
-        model = initialize_model_from_gpt2(args, logger)
+    else:
+        raise ValueError(
+            "Invalid initialization mode. Must be 'scratch' or 'resume'."
+        )
 
-    model = crop_and_move_model(args, model)
+    model.to(args.device)
 
     optimizer = initialize_optimizer(args, model, checkpoint)
 
@@ -254,12 +240,6 @@ if __name__ == "__main__":
         gradient_accumulation_steps=args.gradient_accumulation_steps,
     )
 
-    models = Model.__members__.values()
-    if args.model not in [member.value for member in models]:
-        raise ValueError(
-            f"Invalid model `{args.model}` specified, only {models} are available."
-        )
-
     initialize_run_performance_logging(args)
 
     # Initialize the training config
@@ -271,14 +251,7 @@ if __name__ == "__main__":
         log_interval=args.log_interval,
         wandb_log=args.wandb_log,
         # Architecture
-        bias=args.bias,
-        model=args.model,
-        dropout=args.dropout,
-        n_head=args.n_head,
-        n_layer=args.n_layer,
-        n_experts=args.n_experts,
-        n_embd=args.n_embd,
-        top_k_experts=args.top_k_experts,
+        model_name=args.model_name,
         # Training params
         eval_interval=args.eval_interval,
         batch_size=args.batch_size,

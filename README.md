@@ -1,7 +1,6 @@
 # SmolTrainer
 
-Welcome to SmolTrainer, an evolution of the popular nanoGPT repository, tailored to train additional models such as Llama, or with additional techniques like LoRA.
-
+Welcome to SmolTrainer, an evolution of the popular nanoGPT repository, tailored to train additional models with as little overhead as possible.
 ---
 
 ## Install and Setup
@@ -47,42 +46,23 @@ pip3 install poetry && poetry install
 
 # Optional development tooling
 # pre-commit install
-```
-
-```bash
-# Prepare the training data
-poetry run python smol_trainer/nano_gpt/data/shakespeare/prepare.py
-mv smol_trainer/nano_gpt/data/shakespeare smol_trainer/data
 
 # For the full training set, run the following -
 # poetry run python smol_trainer/data/concoction/prepare.py
-```
 
 ## Train
 
 ```bash
 # Perform a local training run with GPT
 export DATASET=shakespeare
-export MODEL=gpt
-poetry run python smol_trainer/runner.py  --eval-iters=20 --log-interval=1 --block-size=1024 --batch-size=12 --n-layer=12 --n-head=12 --n-embd=768 --max-iters=2000000 --lr-decay-iters=60000 --dropout=0.0 --model=$MODEL --dataset=$DATASET --gradient-accumulation-steps=1 --min-lr=1e-4 --beta2=0.99 --eval-interval=2500 --grad-clip=1 --compile=False --device=cpu
-
+export MODEL_NAME=pythia-70m
+poetry run python smol_trainer/runner.py  --model-name=$MODEL_NAME --dataset=$DATASET --batch-size=8 --block-size=64 --eval-iters=250 --compile=False --device=cpu 
 ```
 
-Great, now let's proceed onward to train the full UberSmol model. We assume that the training run occurs on 8x A100s.
+Great, now let's proceed onward to train the full UberSmol models.
 
 ```bash
-
-## UberSmol-pico
-poetry run torchrun --standalone --nproc_per_node=8 smol_trainer/runner.py --batch-size=8 --n-layer=12 --n-head=12 --n-embd=768 --dataset=concoction  --gradient-accumulation-steps=40 --wandb-log --eval-iters=250
-
-## UberSmol-nano
-poetry run torchrun --standalone --nproc_per_node=8 smol_trainer/runner.py --batch-size=8 --n-layer=24 --n-head=16 --n-embd=1024 --dataset=concoction  --gradient-accumulation-steps=40 --wandb-log --eval-iters=250
-
-## UberSmol-micro
-poetry run torchrun --standalone --nproc_per_node=8 smol_trainer/runner.py --batch-size=8 --n-layer=36 --n-head=20 --n-embd=1280 --dataset=concoction  --gradient-accumulation-steps=40 --wandb-log --eval-iters=500
-
-## UberSmol-mili
-poetry run torchrun --standalone --nproc_per_node=8 smol_trainer/runner.py --batch-size=8 --n-layer=48 --n-head=25 --n-embd=1600 --dataset=concoction  --gradient-accumulation-steps=40 --wandb-log --eval-iters=500
+poetry run python smol_trainer/runner.py --batch-size=8 --n-layer=12 --n-head=12 --n-embd=768 --dataset=concoction  --gradient-accumulation-steps=40 --wandb-log --eval-iters=250
 ```
 
 ### Comments

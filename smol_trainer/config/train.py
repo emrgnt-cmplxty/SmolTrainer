@@ -1,14 +1,8 @@
+"""Configurations for training."""
 import logging
 import time
 from dataclasses import dataclass
 from enum import Enum
-
-
-class Model(Enum):
-    MOE = "moe"
-    GPT = "gpt"
-    LLAMA = "llama"
-    LORA = "lora"
 
 
 @dataclass
@@ -46,14 +40,7 @@ class TrainConfig:
     wandb_log: bool
 
     # Arhitecture
-    bias: bool
-    model: Model
-    dropout: float
-    n_head: int
-    n_layer: int
-    n_experts: int
-    n_embd: int
-    top_k_experts: int
+    model_name: str
 
     # Training Params
     eval_interval: int
