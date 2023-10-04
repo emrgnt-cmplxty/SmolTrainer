@@ -8,7 +8,6 @@ Derived from https://github.com/Lightning-AI/lit-gpt/tree/main. Apache-2 License
 import math
 from typing import Any, Optional, Tuple
 
-from typing_extensions import Self
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
