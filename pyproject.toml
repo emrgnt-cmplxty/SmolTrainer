@@ -12,7 +12,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.11"
-torch = "2.0.0"
+torch = "2.1.0"
 numpy = "^1.25.2"
 requests = "^2.31.0"
 tiktoken = "^0.4.0"
@@ -42,7 +42,7 @@ exclude = '''
 
 [tool.mypy]
 ignore_missing_imports = true
-exclude = 'smol_trainer/nano_gpt/|smol_trainer/inference.py|smol_trainer/model/lora.py'
+exclude = 'smol_trainer/nano_gpt/|smol_trainer/inference.py'
 
 [tool.flake8]
 ignore = ["E501", "W503"]

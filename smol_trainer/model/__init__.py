@@ -1,4 +1,3 @@
-from smol_trainer.model.gpt import GPT, GPTConfig
-from smol_trainer.model.moe import MoEGPT
+from smol_trainer.model.gpt import GPT, GptNeoxMLP
 
-__all__ = ["MoEGPT", "GPT", "GPTConfig"]
+__all__ = ["GPT", "GptNeoxMLP"]

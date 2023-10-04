@@ -9,7 +9,7 @@ import tiktoken
 import torch
 
 from smol_trainer.config import Model
-from smol_trainer.model import MoEGPT, GPT, GPTConfig
+from smol_trainer.model import GPT, GPTConfig, MoEGPT
 
 # -----------------------------------------------------------------------------
 init_from = "resume"  # either 'resume' (from an out_dir) or a gpt2 variant (e.g. 'gpt2-xl')
@@ -71,13 +71,7 @@ if init_from == "resume":
         bias=checkpoint["bias"],
         do_flash_v2=checkpoint["do_flash_v2"],
     )
-    model = (
-        GPT(gptconf)
-        if checkpoint["model"].value == Model.GPT.value
-        else MoEGPT(
-            gptconf, checkpoint["n_experts"], checkpoint["top_k_experts"]
-        )
-    )
+    model = GPT(gptconf)
     state_dict = checkpoint["model"]
     unwanted_prefix = "_orig_mod."
     for k, v in list(state_dict.items()):
