@@ -42,7 +42,7 @@ def parse_args():
         "--out-dir", default="results", type=str, help="Output directory"
     )
     parser.add_argument(
-        "--eval-interval", default=2000, type=int, help="Evaluation interval"
+        "--eval-interval", default=100, type=int, help="Evaluation interval"
     )
     parser.add_argument(
         "--log-interval", default=1, type=int, help="Log interval"

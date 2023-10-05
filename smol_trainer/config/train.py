@@ -61,6 +61,7 @@ class TrainConfig:
 
     # Run information
     iter_num: int = 0
+    total_tokens_processed: int = 0
     best_val_loss: float = 1e9
     running_mfu: float = -1.0
     initial_time: float = time.time()

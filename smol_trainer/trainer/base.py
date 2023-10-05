@@ -59,7 +59,7 @@ def log_metrics(
 ):
     """Log metrics during training."""
     config.logger.info(
-        f"iter {config.iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, 100*mfu {config.running_mfu*100*100:.2f}%"
+        f"iter {config.iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {config.running_mfu*100:.2f}%, total_tokens_processed {config.total_tokens_processed}"
     )
 
 
@@ -119,6 +119,7 @@ def perform_evaluation(
                 "val/loss": losses["val"],
                 "lr": config.lr_config.lr,
                 "mfu": config.running_mfu * 100,  # convert to percentage
+                "tokens_processed": config.total_tokens_processed,
             }
         )
 
@@ -155,7 +156,9 @@ def train_model(
     """Train the model."""
     # TODO - Break this function up into smaller functions
 
+    # initial setup
     lr_config = config.lr_config
+
     # Fetch the very first batch
     X, Y = get_batch(config, train_data)
     t0 = time.time()
@@ -190,6 +193,8 @@ def train_model(
         # forward backward update, with optional gradient accumulation to simulate larger batch size
         # and using the GradScaler if data type is float16
         for micro_step in range(lr_config.gradient_accumulation_steps):
+            config.total_tokens_processed += X.numel()
+
             if config.ddp:
                 # in DDP training we only need to sync gradients at the last micro step.
                 # the official way to do this is with model.no_sync() context manager, but

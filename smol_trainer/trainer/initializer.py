@@ -134,7 +134,6 @@ def initialize_model_from_checkpoint(
     model.load_state_dict(state_dict)
 
     # Update args to reflect latest numbers from checkpoint
-    args.iter_num = checkpoint["iter_num"]
     args.best_val_loss = checkpoint["best_val_loss"]
 
     return model, checkpoint
