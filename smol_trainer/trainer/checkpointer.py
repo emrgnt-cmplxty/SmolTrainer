@@ -16,7 +16,7 @@ def get_project_identifier(output_config: dict) -> str:
 
 def get_checkpoint_prefix(output_config: dict) -> str:
     """Returns the name of the checkpoint file"""
-    return f"checkpiont_{get_project_identifier(output_config)}"
+    return f"checkpoint_{get_project_identifier(output_config)}"
 
 
 def manage_checkpoints(output_config: dict) -> None:
