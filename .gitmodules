@@ -1,3 +1,0 @@
-[submodule "smol_trainer/nano_gpt"]
-	path = smol_trainer/nano_gpt
-	url = https://github.com/karpathy/nanoGPT

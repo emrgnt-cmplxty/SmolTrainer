@@ -7,7 +7,7 @@ from functools import lru_cache
 from importlib.util import find_spec
 from typing import Optional
 
-import pkg_resources
+import pkg_resources  # type: ignore
 
 
 @lru_cache()
