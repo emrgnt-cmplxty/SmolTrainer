@@ -22,7 +22,7 @@ class ModelConfig:
     name: str = "SmolModel"
     # GPT Params
     block_size: int = 4096
-    vocab_size: int = 50304  # GPT-2 vocab_size of 50257, padded up to nearest multiple of 64 for efficiency
+    vocab_size: int = 32_000
     n_layer: int = 16
     n_head: int = 32
     n_embd: int = 768
