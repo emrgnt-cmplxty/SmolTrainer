@@ -59,12 +59,26 @@ def parse_args():
         action="store_true",
         help="Always save checkpoint after each evaluation",
     )
+
+    # Run parameters
     parser.add_argument(
         "--init-from",
         default="scratch",
         type=str,
         choices=["scratch", "resume"],
         help="Initialization mode: scratch, resume or gpt2*",
+    )
+    parser.add_argument(
+        "--ckpt-path-override",
+        default=None,
+        type=str,
+        help="Path to the model",
+    )
+    parser.add_argument(
+        "--iter-num",
+        default=0,
+        type=int,
+        help="Iteration number, used when resuming training",
     )
     parser.add_argument(
         "--run-name", default="run_0", type=str, help="Specify the run name."
@@ -203,12 +217,6 @@ def parse_args():
         type=str2bool,
         default=True,
         help="Use PyTorch 2.0 to compile the model to be faster.",
-    )
-    parser.add_argument(
-        "--model-ckpt-name",
-        default="ckpt.pt",
-        type=str,
-        help="Path to the model",
     )
 
     return parser.parse_args()

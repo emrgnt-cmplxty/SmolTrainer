@@ -98,7 +98,6 @@ def setup_run_args(logger: logging.Logger, args: argparse.Namespace) -> None:
     )  # for later use in torch.autocast
 
     # Initialize here so we can override if init_from='resume' (i.e. from a checkpoint)
-    args.iter_num = 0
     args.best_val_loss = 1e9
 
     prefix = get_checkpoint_prefix(vars(args))

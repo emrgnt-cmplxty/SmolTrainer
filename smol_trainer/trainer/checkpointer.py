@@ -11,7 +11,7 @@ from torch.optim import Optimizer
 def get_project_identifier(output_config: dict) -> str:
     """Returns the name of the checkpoint file"""
 
-    return f"run_namge_{output_config['run_name']}__model_{output_config['model_name']}"
+    return f"run_name_{output_config['run_name']}__model_{output_config['model_name']}"
 
 
 def get_checkpoint_prefix(output_config: dict) -> str:
