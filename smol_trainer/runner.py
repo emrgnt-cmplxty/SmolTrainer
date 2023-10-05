@@ -25,11 +25,11 @@ from contextlib import nullcontext
 from typing import Any, Union
 
 import torch
-import wandb
 from torch.distributed import destroy_process_group, init_process_group
 from torch.nn import Module
 from torch.nn.parallel import DistributedDataParallel as DDP
 
+import wandb
 from smol_trainer.config import LearningConfig, TrainConfig
 from smol_trainer.trainer import (
     get_checkpoint_prefix,

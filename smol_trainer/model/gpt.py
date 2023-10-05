@@ -5,6 +5,7 @@ https://github.com/EleutherAI/gpt-neox/tree/main/megatron/model.
 
 Derived from https://github.com/Lightning-AI/lit-gpt/tree/main. Apache-2 License.
 """
+import logging
 import math
 from typing import Any, Optional, Tuple
 
@@ -61,6 +62,7 @@ class GPT(nn.Module):
         )
         self.max_seq_length = self.config.block_size
         self.mask_cache: Optional[torch.Tensor] = None
+        logging.info(f"FlashAttention2Available = {FlashAttention2Available}")
 
     @property
     def max_seq_length(self) -> int:

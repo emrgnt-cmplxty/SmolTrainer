@@ -23,6 +23,7 @@ triton = "^2.1.0"
 fire = "^0.5.0"
 
 [tool.poetry.group.dev.dependencies]
+black = "^23.3.0"
 flake8 = "6.1.0"
 isort = "5.12.0"
 pre-commit = "^3.3.3"
@@ -34,17 +35,10 @@ yapf = "0.40.1"
 
 [tool.black]
 line-length = 79
-exclude = '''
-(
-  /(
-    | smol_trainer/nano_gpt/
-  )/
-)
-'''
 
 [tool.mypy]
 ignore_missing_imports = true
-exclude = 'smol_trainer/nano_gpt/|smol_trainer/inference.py'
+exclude = 'smol_trainer/inference.py|playground/'
 
 [tool.flake8]
 ignore = ["E501", "W503"]
