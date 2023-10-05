@@ -9,6 +9,7 @@ import torch
 from torch.nn import Module
 
 from smol_trainer.model import GPT
+from smol_trainer.trainer.checkpointer import get_checkpoint_prefix
 
 
 def configure_optimizers(model: Module, weight_decay, learning_rate, betas):
@@ -79,6 +80,9 @@ def initialize_model_from_scratch(
 
     logger.info(f"Running model {args.model_name}")
 
+    if args.iter_num != 0:
+        raise ValueError("iter_num must be 0 to initialize from scratch")
+
     return GPT.from_name(args.model_name)
 
 
@@ -89,12 +93,36 @@ def initialize_model_from_checkpoint(
 
     logger.info(f"Resuming training from {args.out_dir}")
 
-    # TODO - Fix this to dynamically write the correct path.
-    ckpt_path = os.path.join(args.out_dir, args.model_ckpt_name)
-    if not os.path.exists(ckpt_path):
-        raise ValueError(f"Checkpoint path {ckpt_path} does not exist")
+    if args.ckpt_path_override:
+        checkpoint = torch.load(
+            args.ckpt_path_override, map_location=args.device
+        )
+    else:
+        try:
+            checkpoint_prefix = get_checkpoint_prefix(
+                {"run_name": args.run_name, "model_name": args.model_name}
+            )
+            model_path = os.path.join(
+                args.out_dir,
+                checkpoint_prefix,
+                f"{checkpoint_prefix}__iter_num_{args.iter_num}.pt",
+            )
+            if not os.path.exists(model_path):
+                raise ValueError(
+                    f"Checkpoint path {model_path} does not exist"
+                )
 
-    checkpoint = torch.load(ckpt_path, map_location=args.device)
+            checkpoint = torch.load(model_path, map_location=args.device)
+            args.iter_num = checkpoint["iter_num"]
+            assert (
+                args.iter_num == checkpoint["iter_num"]
+            ), "Iteration numbers do not match!"
+
+        except Exception as e:
+            logger.error(
+                "Encountered an  error {e} while attempting to load model checkpoint"
+            )
+            raise e
 
     model = GPT.from_name(args.model_name, block_size=args.block_size)
     state_dict = checkpoint["model"]
