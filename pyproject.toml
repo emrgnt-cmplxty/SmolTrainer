@@ -19,6 +19,8 @@ wandb = "^0.15.9"
 python-dotenv = "^1.0.0"
 datasets = "^2.14.5"
 transformers = "^4.34.0"
+triton = "^2.1.0"
+fire = "^0.5.0"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "6.1.0"

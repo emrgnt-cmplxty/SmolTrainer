@@ -1,11 +1,71 @@
+import logging
+import multiprocessing
 import os
 
+import fire as fire
 import numpy as np
+import yaml
 from datasets import load_dataset
 from dotenv import load_dotenv
 from transformers import AutoTokenizer
 
-load_dotenv()
+from smol_trainer.data.data_config import datasets_config
+from smol_trainer.utils import get_root_py_fpath
+
+# Basic configuration for logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+
+class TokenizationManager:
+    def __init__(self, encoding, num_proc=None):
+        self.tokenizer = AutoTokenizer.from_pretrained(encoding)
+        self.num_proc = num_proc or multiprocessing.cpu_count() // 2
+
+    def tokenize_dataset(self, dataset, formatters, raw_tokenize_function):
+        tokenize_function = lambda x: raw_tokenize_function(
+            x, formatters, self.tokenizer
+        )
+        tokenized_dataset = dataset.map(
+            tokenize_function, num_proc=self.num_proc
+        )
+        return [
+            token
+            for sublist in tokenized_dataset["input_ids"]
+            for token in sublist[0]
+        ]
+
+    def split_and_save(self, flattened_tokens, val_frac, dataset_name):
+        train_ids = flattened_tokens[
+            : int(len(flattened_tokens) * (1 - val_frac))
+        ]
+        val_ids = flattened_tokens[
+            int(len(flattened_tokens) * (1 - val_frac)) :
+        ]
+
+        train_ids = np.array(train_ids, dtype=np.uint16)
+        val_ids = np.array(val_ids, dtype=np.uint16)
+
+        if not os.path.exists(
+            os.path.join(os.path.dirname(__file__), dataset_name)
+        ):
+            os.mkdir(os.path.join(os.path.dirname(__file__), dataset_name))
+
+        train_ids.tofile(
+            os.path.join(
+                os.path.dirname(__file__),
+                dataset_name,
+                f"{dataset_name}_train.bin",
+            )
+        )
+        val_ids.tofile(
+            os.path.join(
+                os.path.dirname(__file__),
+                dataset_name,
+                f"{dataset_name}_val.bin",
+            )
+        )
 
 
 class DatasetLoader:
@@ -40,167 +100,119 @@ def simple_tokenize(batch, formatters, tokenizer):
     return tokenizer("\n\n".join(combined_text), return_tensors="np")
 
 
-HF_TOKEN = os.environ.get("HF_TOKEN")
-TRAIN_SPLIT = "train"
-MULTIPLIER = 1
-ENCODING = "mistralai/Mistral-7B-v0.1"
-VAL_FRAC = 0.01
-NUM_PROC = 8
+def read_binary_dataset(dataset_name, split):
+    file_path = os.path.join(
+        os.path.dirname(__file__), dataset_name, f"{dataset_name}_{split}.bin"
+    )
+    return np.fromfile(file_path, dtype=np.uint16)
 
-if __name__ == "__main__":
-    # Example of usage
-    loader = DatasetLoader(split=TRAIN_SPLIT, token=HF_TOKEN)
 
-    loader.add_dataset(
-        "sciphi-python-textbook",
-        "emrgnt-cmplxty/sciphi-python-textbook",
-        {
-            "formatted_prompt": "### Instruction:",
-            "completion": "### Response:",
-        },
-        simple_tokenize,
-    )
-    loader.add_dataset(
-        "sciphi-textbooks-are-all-you-need",
-        "emrgnt-cmplxty/sciphi-textbooks-are-all-you-need",
-        {
-            "formatted_prompt": "### Instruction:",
-            "completion": "### Response:",
-        },
-        simple_tokenize,
-    )
-    loader.add_dataset(
-        "open-phi-textbooks",
-        "open-phi/textbooks",
-        {"markdown": ""},
-        simple_tokenize,
-    )
-    loader.add_dataset(
-        "programming-books-llama",
-        "open-phi/programming_books_llama",
-        {"markdown": ""},
-        simple_tokenize,
-    )
-    loader.add_dataset(
-        "open-orca",
-        "Open-Orca/OpenOrca",
-        {
-            "system_prompt": "### System:",
-            "question": "### Question:",
-            "response": "### Response:",
-        },
-        simple_tokenize,
-    )
-    loader.add_dataset(
-        "tiny-stories", "roneneldan/TinyStories", {"text": ""}, simple_tokenize
-    )
-    loader.add_dataset(
-        "tiny-codes",
-        "nampdn-ai/tiny-codes",
-        {
-            "prompt": "### Instruction:",
-            "response": "### Response:",
-        },
-        simple_tokenize,
-    )
-    loader.add_dataset(
-        "tiny-orca",
-        "nampdn-ai/tiny-orca-textbooks",
-        {
-            "prompt": "### System:",
-            "question": "### Question:",
-            "textbook": "### Context:",
-            "response": "### Response:",
-        },
-        simple_tokenize,
-    )
-    loader.add_dataset(
-        "tiny-textbooks",
-        "nampdn-ai/tiny-textbooks",
-        {
-            "text": "### Instruction:\nWrite a lesson based on the following content:",
-            "textbook": "### Response:",
-        },
-        simple_tokenize,
-    )
-    loader.add_dataset(
-        "meta-math",
-        "meta-math/MetaMathQA",
-        {
-            "query": "### Question:",
-            "response": "### Answer:",
-        },
-        simple_tokenize,
-    )
-    loader.add_dataset(
-        "evol-instruct",
-        "nickrosh/Evol-Instruct-Code-80k-v1",
-        {
-            "instruction": "### Instruction:",
-            "output": "### Output:",
-        },
-        simple_tokenize,
-    )
-    loader.add_dataset(
-        "open-platypus",
-        "garage-bAInd/Open-Platypus",
-        {
-            "instruction": "### Instruction:",
-            "output": "### Output:",
-        },
-        simple_tokenize,
-    )
+def load_weights_from_yaml(yaml_path):
+    with open(yaml_path, "r") as file:
+        dataset_weights = yaml.safe_load(file)
+    return dataset_weights
+
+
+def tokenizer(
+    hf_token=None, encoding="mistralai/Mistral-7B-v0.1", val_frac=0.01
+):
+    hf_token = hf_token or os.environ.get("HF_TOKEN")
+    logging.info(f"Loading datasets with token: {hf_token}")
+
+    if not hf_token:
+        raise ValueError(
+            "No HuggingFace token provided and HF_TOKEN environment variable is not set."
+        )
+
+    loader = DatasetLoader(split="train", token=hf_token)
+
+    for dataset_name, config in datasets_config.items():
+        loader.add_dataset(
+            dataset_name,
+            config["path"],
+            config["mappings"],
+            globals()[config["tokenizer"]],
+        )
 
     datasets = loader.load_all_datasets()
-    tokenizer = AutoTokenizer.from_pretrained(ENCODING)
+    manager = TokenizationManager(encoding)
 
     for dataset_name, payload in datasets.items():
+        logging.info(f"Tokenizing dataset: {dataset_name}")
+
         dataset, formatters, raw_tokenize_function = payload
         if "train" in dataset:
             dataset = dataset["train"]
 
-        tokenize_function = lambda x: raw_tokenize_function(
-            x, formatters, tokenizer
+        flattened_tokens = manager.tokenize_dataset(
+            dataset, formatters, raw_tokenize_function
         )
-        dataset = dataset.shuffle(seed=42)
+        manager.split_and_save(flattened_tokens, val_frac, dataset_name)
 
-        # Tokenize the subset
-        tokenized_dataset = dataset.map(tokenize_function, num_proc=NUM_PROC)
 
-        flattened_tokens = [
-            token
-            for sublist in tokenized_dataset["input_ids"]
-            for token in sublist[0]
+def remixer(config_name, chunk_size, remixed_name):
+    config_path = os.path.join(
+        get_root_py_fpath(),
+        "data",
+        "data_configurations",
+        f"{config_name}.yaml" if ".yaml" not in config_name else config_name,
+    )
+
+    logging.info(f"Loading dataset weights from: {config_path}")
+    dataset_weights = load_weights_from_yaml(config_path)
+
+    # Identify the highest weight
+    max_weight = max(dataset_weights.values())
+
+    # Normalize weights
+    fractions = {k: v / max_weight for k, v in dataset_weights.items()}
+
+    logging.info(
+        f"Saving datasets now to remixed dataset name = {remixed_name}"
+    )
+
+    all_data = {"train": [], "val": []}
+
+    for dataset_name, fraction in fractions.items():
+        logging.info(
+            f"Loading and remixing dataset: {dataset_name} with fraction: {fraction}"
+        )
+
+        for dataset_type in all_data.keys():
+            data = read_binary_dataset(dataset_name, dataset_type)
+            subset_length = int(len(data) * fraction)
+            all_data[dataset_type].extend(data[:subset_length])
+
+    for dataset_type, data in all_data.items():
+        # Chunking
+        chunks = [
+            data[i : i + chunk_size] for i in range(0, len(data), chunk_size)
         ]
 
-        train_ids = flattened_tokens[
-            : int(len(flattened_tokens) * (1 - VAL_FRAC))
+        # Merging chunks
+        merged_chunks = chunks
+
+        # Shuffling merged chunks
+        np.random.shuffle(merged_chunks)
+
+        # Unchunking
+        all_data[dataset_type] = [
+            token for chunk in merged_chunks for token in chunk
         ]
-        val_ids = flattened_tokens[
-            int(len(flattened_tokens) * (1 - VAL_FRAC)) :
-        ]
 
-        print(f"train has {len(train_ids):,} tokens")
-        print(f"val has {len(val_ids):,} tokens")
+    # Construct path for saving
+    save_path = os.path.join(get_root_py_fpath(), "data", remixed_name)
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
 
-        train_ids = np.array(train_ids, dtype=np.uint16)
-        val_ids = np.array(val_ids, dtype=np.uint16)
-        if not os.path.exists(
-            os.path.join(os.path.dirname(__file__), dataset_name)
-        ):
-            os.mkdir(os.path.join(os.path.dirname(__file__), dataset_name))
+    logging.info(f"Saving remixed datasets to {save_path}")
 
-        train_ids.tofile(
-            os.path.join(
-                os.path.dirname(__file__),
-                dataset_name,
-                f"{dataset_name}_train.bin",
-            )
+    # Save the remixed datasets
+    for dataset_type, data in all_data.items():
+        np.array(data, dtype=np.uint16).tofile(
+            os.path.join(save_path, f"{remixed_name}_{dataset_type}.bin")
         )
-        val_ids.tofile(
-            os.path.join(
-                os.path.dirname(__file__),
-                dataset_name,
-                f"{dataset_name}_val.bin",
-            )
-        )
+
+
+if __name__ == "__main__":
+    fire.Fire({"tokenizer": tokenizer, "remixer": remixer})
