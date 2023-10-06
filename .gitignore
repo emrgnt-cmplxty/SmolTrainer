@@ -9,3 +9,6 @@ __pycache__/
 .env
 .vscode
 .DS_Store
+
+smol_trainer/data/
+playground/

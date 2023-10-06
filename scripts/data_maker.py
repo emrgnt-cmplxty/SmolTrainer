@@ -11,13 +11,11 @@ from datasets import load_dataset
 from tqdm import tqdm
 from transformers import AutoTokenizer
 
-from smol_trainer.data.data_config import datasets_config
+from data_config import datasets_config
 from smol_trainer.utils import get_root_py_fpath
 
 # Basic configuration for logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 class TokenizationManager:
@@ -28,32 +26,18 @@ class TokenizationManager:
         self.num_proc = num_proc or multiprocessing.cpu_count()
 
     def tokenize_dataset(self, dataset, formatters, raw_tokenize_function):
-        tokenize_function = lambda x: raw_tokenize_function(
-            x, formatters, self.tokenizer
-        )
-        tokenized_dataset = dataset.map(
-            tokenize_function, num_proc=self.num_proc
-        )
-        return [
-            token
-            for sublist in tokenized_dataset["input_ids"]
-            for token in sublist[0]
-        ]
+        tokenize_function = lambda x: raw_tokenize_function(x, formatters, self.tokenizer)
+        tokenized_dataset = dataset.map(tokenize_function, num_proc=self.num_proc)
+        return [token for sublist in tokenized_dataset["input_ids"] for token in sublist[0]]
 
     def split_and_save(self, flattened_tokens, val_frac, dataset_name):
-        train_ids = flattened_tokens[
-            : int(len(flattened_tokens) * (1 - val_frac))
-        ]
-        val_ids = flattened_tokens[
-            int(len(flattened_tokens) * (1 - val_frac)) :
-        ]
+        train_ids = flattened_tokens[: int(len(flattened_tokens) * (1 - val_frac))]
+        val_ids = flattened_tokens[int(len(flattened_tokens) * (1 - val_frac)) :]
 
         train_ids = np.array(train_ids, dtype=np.uint16)
         val_ids = np.array(val_ids, dtype=np.uint16)
 
-        if not os.path.exists(
-            os.path.join(os.path.dirname(__file__), dataset_name)
-        ):
+        if not os.path.exists(os.path.join(os.path.dirname(__file__), dataset_name)):
             os.mkdir(os.path.join(os.path.dirname(__file__), dataset_name))
 
         train_ids.tofile(
@@ -102,16 +86,12 @@ def simple_tokenizer(batch, formatters, tokenizer, add_bos_eos=True):
         prefix = formatters[column]
         combined_text.append(f"{prefix}:\n{batch[column]}")
     if add_bos_eos:
-        combined_text = (
-            [tokenizer.bos_token] + combined_text + [tokenizer.eos_token]
-        )
+        combined_text = [tokenizer.bos_token] + combined_text + [tokenizer.eos_token]
     return tokenizer.encode("\n\n".join(combined_text), return_tensors="np")
 
 
 def read_binary_dataset(dataset_name, split):
-    file_path = os.path.join(
-        os.path.dirname(__file__), dataset_name, f"{split}.bin"
-    )
+    file_path = os.path.join(os.path.dirname(__file__), dataset_name, f"{split}.bin")
     return np.fromfile(file_path, dtype=np.uint16)
 
 
@@ -121,9 +101,7 @@ def load_weights_from_yaml(yaml_path):
     return dataset_weights
 
 
-def tokenizer(
-    hf_token=None, encoding="mistralai/Mistral-7B-v0.1", val_frac=0.01
-):
+def tokenizer(hf_token=None, encoding="mistralai/Mistral-7B-v0.1", val_frac=0.01):
     hf_token = hf_token or os.environ.get("HF_TOKEN")
     logging.info(f"Loading datasets with token: {hf_token}")
 
@@ -152,17 +130,13 @@ def tokenizer(
         if "train" in dataset:
             dataset = dataset["train"]
 
-        flattened_tokens = manager.tokenize_dataset(
-            dataset, formatters, raw_tokenize_function
-        )
+        flattened_tokens = manager.tokenize_dataset(dataset, formatters, raw_tokenize_function)
         manager.split_and_save(flattened_tokens, val_frac, dataset_name)
 
 
 def process_dataset(dataset_name, fraction, all_data, chunk_size):
     # TODO - Move parallelism downstream to here.
-    logging.info(
-        f"Loading and remixing dataset: {dataset_name} with fraction: {fraction}"
-    )
+    logging.info(f"Loading and remixing dataset: {dataset_name} with fraction: {fraction}")
 
     local_data = {"train": [], "val": []}
 
@@ -185,9 +159,7 @@ def process_dataset(dataset_name, fraction, all_data, chunk_size):
         np.random.shuffle(chunks)
 
         # Unchunking
-        local_data[dataset_type] = [
-            token for chunk in chunks for token in chunk
-        ]
+        local_data[dataset_type] = [token for chunk in chunks for token in chunk]
 
     return local_data
 
@@ -210,23 +182,17 @@ def remixer(config_name, chunk_size=2_048, num_proc=None):
     fractions = {k: v / max_weight for k, v in dataset_weights.items()}
 
     remixed_name = config_name.replace(".yaml", "")
-    logging.info(
-        f"Saving datasets now to remixed dataset name = {remixed_name}"
-    )
+    logging.info(f"Saving datasets now to remixed dataset name = {remixed_name}")
 
     all_data = {"train": [], "val": []}
 
     num_proc = num_proc or multiprocessing.cpu_count()
 
     # Parallelizing dataset processing
-    with ThreadPoolExecutor(
-        max_workers=num_proc
-    ) as executor:  # Adjust max_workers as necessary
+    with ThreadPoolExecutor(max_workers=num_proc) as executor:  # Adjust max_workers as necessary
         futures = []
         for dataset_name, fraction in fractions.items():
-            future = executor.submit(
-                process_dataset, dataset_name, fraction, all_data, chunk_size
-            )
+            future = executor.submit(process_dataset, dataset_name, fraction, all_data, chunk_size)
             futures.append(future)
 
         for future in concurrent.futures.as_completed(futures):
@@ -244,9 +210,7 @@ def remixer(config_name, chunk_size=2_048, num_proc=None):
 
     # Save the remixed datasets
     for dataset_type, data in all_data.items():
-        np.array(data, dtype=np.uint16).tofile(
-            os.path.join(save_path, f"{dataset_type}.bin")
-        )
+        np.array(data, dtype=np.uint16).tofile(os.path.join(save_path, f"{dataset_type}.bin"))
 
 
 if __name__ == "__main__":
